@@ -412,13 +412,13 @@ html[data-theme="candy"] {
   --sel-mark: #e8207a;
   --urgent: #e3244a;
 
-  --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
-  --font-num: "Fredoka", "Nunito", "Segoe UI", sans-serif;
-  --font-cap: "Fredoka", "Nunito", "Segoe UI", sans-serif;
-  --cap-weight: 600;
+  --font-body: "Sniglet", "Segoe UI", system-ui, sans-serif;
+  --font-num: "Sniglet", "Segoe UI", system-ui, sans-serif;
+  --font-cap: "Sniglet", "Segoe UI", system-ui, sans-serif;
+  --cap-weight: 800;
   --cap-size: .74;
   --cap-spacing: .08em;
-  --num-weight: 600;
+  --num-weight: 800;
 
   --desk: #ffb6dc;
   --crt: #ffffff;
@@ -473,7 +473,10 @@ html[data-theme="candy"] {
 /* candy-stripe title bars with the title on a white pill */
 [data-theme="candy"] .titlebar {
   padding: .45em .7em;
-  background: repeating-linear-gradient(-45deg, var(--s1, #ff8fc6) 0 12px, var(--s2, #ffc4e0) 12px 24px);
+  background-color: var(--s1, #ff8fc6);
+  background-image: linear-gradient(45deg, var(--s2, #ffc4e0) 25%, transparent 25% 50%, var(--s2, #ffc4e0) 50% 75%, transparent 75%);
+  background-size: 34px 34px;
+  animation: candy-cane 2.2s linear infinite;
   border-bottom: 3px solid #fff;
   color: var(--text);
 }
@@ -508,7 +511,10 @@ html[data-theme="candy"] {
 [data-theme="candy"] .bar95 { height: 12px; border-radius: 999px; background: #fde2f0; overflow: hidden; }
 [data-theme="candy"] .bar95-fill {
   border-radius: 999px;
-  background: repeating-linear-gradient(-45deg, #ff4fa3 0 8px, #ff9ccb 8px 16px);
+  background-color: #ff4fa3;
+  background-image: linear-gradient(45deg, #ff9ccb 25%, transparent 25% 50%, #ff9ccb 50% 75%, transparent 75%);
+  background-size: 22px 22px;
+  animation: candy-cane-bar 1.4s linear infinite;
 }
 [data-theme="candy"] .hero-tip { color: var(--amber); font-weight: 600; }
 
@@ -560,8 +566,18 @@ html[data-theme="candy"] {
 [data-theme="candy"] .dialog-icon.info { background: var(--sel-mark); color: #fff; }
 
 [data-theme="candy"] .boot-name { color: var(--sel-mark); }
-[data-theme="candy"] .boot-bar div { background: repeating-linear-gradient(-45deg, #ff4fa3 0 8px, #ff9ccb 8px 16px); }
+[data-theme="candy"] .boot-bar div {
+  background: #ff4fa3 linear-gradient(45deg, #ff9ccb 25%, transparent 25% 50%, #ff9ccb 50% 75%, transparent 75%) 0 0 / 22px 22px;
+}
 
-/* more room for the background to show, and Fredoka numbers need normal spacing */
+/* more room for the background to show, and the gumdrop numbers need normal spacing */
 [data-theme="candy"] { --gap: clamp(12px, 1.3vw, 34px); }
 [data-theme="candy"] :is(.countdown, .beacon-count, .dest-time) { letter-spacing: 0; }
+
+@keyframes candy-cane { to { background-position: 34px 0; } }
+@keyframes candy-cane-bar { to { background-position: 22px 0; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="candy"] :is(.titlebar, .bar95-fill) { animation: none; }
+}
+/* Gumdrop weight is for big and short things; longer or smaller text stays regular to read easily. */
+[data-theme="candy"] :is(.leg, .hero-tip, .ticker, .listview tr.sel td) { font-weight: 400; }
