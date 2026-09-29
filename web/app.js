@@ -4,7 +4,7 @@
 
 const REFRESH_MS = 5000;
 const TZ = 'America/Chicago';
-const THEMES = ['terminal', 'studio', 'mono'];
+const THEMES = ['terminal', 'studio', 'mono', 'candy'];
 const THEME_FROM_URL = new URLSearchParams(location.search).get('theme');
 
 // Drawing colors come from the active theme's CSS variables (style.css, themes.css).
@@ -276,7 +276,10 @@ function renderTrajectory(hero, t) {
   const W = svg.clientWidth, H = svg.clientHeight;
   if (!W || !H) return;
   // The Terminal pixel font runs small; Studio and Mono fonts need less size for the same look.
-  const typeScale = document.documentElement.dataset.theme === 'terminal' ? 1 : 0.8;
+  const theme = document.documentElement.dataset.theme;
+  const typeScale = theme === 'terminal' ? 1 : 0.8;
+  // On Candy's white panels, faded route colors wash out: fade less and label in the text color.
+  const lightPanels = theme === 'candy';
   const fs = clamp(Math.min(H * 0.12, W * 0.016), 11, 34) * typeScale;
   const g = geometry.routes.find((r) => r.rt === hero?.rt) || geometry.routes[0];
   if (!state || !g) {
@@ -348,7 +351,7 @@ function renderTrajectory(hero, t) {
     const size = it.small ? fs * 0.7 : it.hero ? fs * 1.15 : fs * 0.9;
     it.x = clamp(it.x, xL + size * 1.2, xR - size * 1.2);
     const ly = yLine - size * 1.6 - fs * 0.2 - lane * fs * 1.15;
-    const op = it.dim ? ' opacity=".45"' : '';
+    const op = it.dim ? ` opacity="${lightPanels ? 0.7 : 0.45}"` : '';
     if (it.hero) {
       s += `<circle cx="${it.x}" cy="${yLine - size * 0.7}" r="${size}" fill="none" stroke="${c}" stroke-width="${fs * 0.1}">
         <animate attributeName="r" from="${size}" to="${size * 2.2}" dur="1s" repeatCount="indefinite"/>
@@ -356,7 +359,7 @@ function renderTrajectory(hero, t) {
     }
     s += busGlyph(it.x, yLine, size, c, op);
     if (lane > 0) s += `<line x1="${it.x}" y1="${ly + fs * 0.2}" x2="${it.x}" y2="${yLine - size * 1.25}" stroke="${c}" stroke-opacity=".5"${op}/>`;
-    s += `<text x="${it.x}" y="${ly}" fill="${c}" font-size="${fs * (it.hero ? 1.2 : 1)}" text-anchor="middle"${op}>${esc(it.label)}</text>`;
+    s += `<text x="${it.x}" y="${ly}" fill="${lightPanels ? INK : c}" font-size="${fs * (it.hero ? 1.2 : 1)}" text-anchor="middle"${op}>${esc(it.label)}</text>`;
   }
   svg.innerHTML = s;
 }
@@ -635,44 +638,89 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !$('#settings-layer').hidden) cancelSettings();
 });
 
-/* ------------------------------------------------------------------ starfield background */
+/* ------------------------------------------------------------------ animated background: stars (Terminal), sprinkles (Candy) */
 
-(function starfield() {
+(function background() {
   const canvas = $('#starfield');
   const ctx = canvas.getContext('2d');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const tints = ['#ffffff', '#ffffff', '#ffffff', '#bfefff', '#ffe2a8', '#d9ccff'];
-  let w = 0, h = 0, dpr = 1, stars = [], last = 0;
+  const sprinkleColors = ['#ff4fa3', '#2f9bff', '#ffc21a', '#22c065', '#9b5cff', '#ff7a1f', '#ffffff'];
+  let w = 0, h = 0, dpr = 1, stars = [], sprinkles = [], last = 0;
 
-  const reset = (s, far) => Object.assign(s, {
+  const resetStar = (s, far) => Object.assign(s, {
     x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, z: far ? 1 : 0.05 + Math.random() * 0.95,
     c: tints[(Math.random() * tints.length) | 0],
   });
+  const resetSprinkle = (s, top) => Object.assign(s, {
+    x: Math.random() * w,
+    y: top ? -20 * dpr : Math.random() * h,
+    len: (7 + Math.random() * 7) * dpr,
+    rot: Math.random() * Math.PI,
+    spin: (Math.random() - 0.5) * 0.8,
+    fall: (10 + Math.random() * 18) * dpr,
+    drift: (Math.random() - 0.5) * 8 * dpr,
+    c: sprinkleColors[(Math.random() * sprinkleColors.length) | 0],
+  });
+
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     w = canvas.width = Math.round(innerWidth * dpr);
     h = canvas.height = Math.round(innerHeight * dpr);
-    const n = Math.round(clamp((innerWidth * innerHeight) / 5000, 120, 420));
-    stars = Array.from({ length: n }, () => reset({}, false));
+    const area = innerWidth * innerHeight;
+    stars = Array.from({ length: Math.round(clamp(area / 5000, 120, 420)) }, () => resetStar({}, false));
+    sprinkles = Array.from({ length: Math.round(clamp(area / 9000, 60, 240)) }, () => resetSprinkle({}, false));
   }
-  function frame(ts) {
-    requestAnimationFrame(frame);
-    if (document.hidden || ts - last < 33 || document.documentElement.dataset.theme !== 'terminal') return;
-    const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0;
-    last = ts;
-    ctx.clearRect(0, 0, w, h);
+
+  function drawStars(dt) {
     const f = Math.max(w, h) * 0.5;
     for (const s of stars) {
       if (!still) s.z -= dt * 0.035;
-      if (s.z <= 0.03) reset(s, true);
+      if (s.z <= 0.03) resetStar(s, true);
       const x = w / 2 + (s.x / s.z) * f * 0.5;
       const y = h / 2 + (s.y / s.z) * f * 0.5;
-      if (x < 0 || x > w || y < 0 || y > h) { reset(s, true); continue; }
+      if (x < 0 || x > w || y < 0 || y > h) { resetStar(s, true); continue; }
       const r = Math.max(0.6, (1 - s.z) * 2.6) * dpr;
       ctx.globalAlpha = clamp((1 - s.z) * 1.5, 0.15, 1);
       ctx.fillStyle = s.c;
       ctx.fillRect(x - r / 2, y - r / 2, r, r);
     }
+  }
+
+  function drawSprinkles(dt) {
+    ctx.globalAlpha = 0.9;
+    const thick = 3.2 * dpr;
+    for (const s of sprinkles) {
+      if (!still) {
+        s.y += s.fall * dt;
+        s.x += s.drift * dt;
+        s.rot += s.spin * dt;
+      }
+      if (s.y > h + 20 * dpr) resetSprinkle(s, true);
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.fillStyle = s.c;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(-s.len / 2, -thick / 2, s.len, thick, thick / 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-s.len / 2, -thick / 2, s.len, thick);   // older TV browsers
+      }
+      ctx.restore();
+    }
+  }
+
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    const theme = document.documentElement.dataset.theme;
+    if (document.hidden || ts - last < 33 || (theme !== 'terminal' && theme !== 'candy')) return;
+    const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0;
+    last = ts;
+    ctx.clearRect(0, 0, w, h);
+    if (theme === 'candy') drawSprinkles(dt);
+    else drawStars(dt);
   }
   resize();
   addEventListener('resize', resize);

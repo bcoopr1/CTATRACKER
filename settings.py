@@ -14,7 +14,7 @@ from geocode import GeocodeError, geocode
 from tracker import LOCAL_SETTINGS_NAME, read_local_settings
 
 KEY_PATTERN = re.compile(r"^[A-Za-z0-9]{16,40}$")
-THEMES = ("terminal", "studio", "mono")
+THEMES = ("terminal", "studio", "mono", "candy")
 ROUTE_PATTERN = re.compile(r"[A-Za-z]?\d{1,3}[A-Za-z]?")
 
 
