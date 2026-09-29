@@ -1,5 +1,7 @@
-# Secrets
+# Secrets and personal settings
 .env
+settings.local.json
+*.tmp
 
 # Python
 __pycache__/

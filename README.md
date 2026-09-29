@@ -1,90 +1,134 @@
-# Commute Control 95
+# Commute
 
-A living-room display for your bus commute from home to work,
-fed by the CTA Bus Tracker API (v3). It shows the next bus to your stop, when to walk out the
-door, where the bus is right now, and when you'll be at your desk.
+A full-screen CTA bus tracker meant for a TV or spare monitor. Enter your home and work
+addresses and it works out which buses connect them, counts down to the next one at your stop,
+tells you when to leave, and estimates when you'll be at work. A live street map shows where
+every bus on your routes is.
 
-Only Python 3 is needed. There's nothing to `pip install`.
+Built on the [CTA Bus Tracker API](https://www.transitchicago.com/developers/bustracker/) (v3).
+Python standard library only; no packages to install.
+
+## Requirements
+
+- Windows with Python 3.9 or newer (Microsoft Store or python.org)
+- A CTA Bus Tracker API key (free, from ctabustracker.com under My Account → Developer API)
+- Microsoft Edge for the full-screen launcher (any modern browser works for viewing)
 
 ## Setup
 
-1. **Private settings go in `.env`** (already filled in). It holds your API key and where
-   home and work are:
-   ```
-   CTA_API_KEY=your-25-character-key
-   HOME_LABEL=...   HOME_LAT=...   HOME_LON=...
-   WORK_LABEL=...   WORK_LAT=...   WORK_LON=...
-   ```
-   (one `NAME=value` per line). `.env` is listed in `.gitignore`, so none of it ends up in git.
-   Real environment variables with the same names override the file.
-2. **Routes.** In `config.json`, set `"routes"` to your bus numbers, e.g. `["146", "151"]`.
-   The stop nearest home and the stop nearest work are picked automatically for each route.
-   Check what it chose:
-   ```
-   python tracker.py --stops
-   ```
-3. **Run it.** Double-click `start_display.bat`. It starts the server and opens Edge full-screen
-   (Alt+F4 closes it). Other screens on your Wi-Fi can open the "other screens" address the
-   server prints. Windows may ask to allow Python through the firewall the first time.
+1. Double-click `start_display.bat`. On first run the display asks for setup.
+2. Click **Open Settings** (or **Settings** in the bottom bar) and enter:
+   - **Home and work addresses.** A street address or a building name ("Willis Tower")
+     both work. Addresses are looked up with the US Census geocoder, falling back to
+     OpenStreetMap.
+   - **Your CTA API key.**
+   - **Preferred buses (optional).** Leave this blank and the tracker scans every CTA route
+     and keeps the ones that connect your two addresses, up to five, within 12 minutes of the
+     fastest. The scan takes a few seconds and is repeated twice a day. Enter route numbers
+     instead if you only want specific buses.
+3. Save. The display switches over as soon as the first lookup finishes.
 
-To try it without live data: `start_display.bat --demo`.
+Settings can also be changed from a phone on the same network at
+`http://<pc-address>:8095/#settings`.
 
-To start it automatically at login, press Win+R, type `shell:startup`, and put a shortcut to
-`start_display.bat` in that folder. Also set the PC's screen to never sleep.
+Addresses, preferred buses and timing are saved to `settings.local.json`; the key is saved to
+`.env`. Both are git-ignored. The key can also be supplied as a `CTA_API_KEY` environment
+variable.
 
-## What's on screen
-
-| Window | What it tells you |
-| --- | --- |
-| **T-MINUS** | Countdown until the next bus you can still catch reaches your stop, plus a "leave home in" countdown: STANDBY, then GET READY (5 min), GO NOW (1 min), RUN FOR IT (late, but still within the grace period). |
-| **ARRIVAL** | The time you'll be at your desk, door-to-door minutes, and the walk / ride / walk split. |
-| **TRAJECTORY** | Buses on a line: to the left of your stop they're still coming; to the right, you're riding downtown. |
-| **MANIFEST** | The next several departures, with leave-by time, time at your desk, and where each bus is. |
-| **RADAR** | Map with your route, home, the office, and live bus positions. Bright buses are headed your way; grey ones are going the other direction. |
-| Taskbar | Live CTA service alerts for your routes, connection light, and clock. |
-
-Outside `active_hours` the screen dims and checks less often. The layout shifts a few pixels
-every 3 minutes so a TV doesn't burn in the window frames.
-
-## How the times are worked out
-
-- **Bus at your stop:** CTA's prediction for your stop.
-- **Leave by** = bus at stop − walk to stop − `minutes_to_get_out_the_door`.
-- **Off the bus:** CTA's prediction for that same bus at your work stop. If CTA isn't
-  predicting that far ahead yet, it's estimated from the bus's current pace (marked
-  "est." / "estimated").
-- **At desk** = off the bus + walk to the building + `minutes_from_stop_to_desk`.
-- Walks are straight-line distance × `walk_detour_factor` at `walk_speed_mph`.
-
-## Terminal use
+For each route, the tracker uses the stop closest to home and the stop closest to work along
+that route. To check what it picked:
 
 ```
-python tracker.py            # one snapshot
-python tracker.py --watch    # keep refreshing
-python tracker.py --stops    # which stops each route uses (with stop ids)
-python server.py --demo      # display with simulated buses
+python tracker.py --stops
 ```
 
-## Settings (`config.json`)
+## Running
 
-| Key | Meaning |
+Double-click `start_display.bat`. It starts the local server (minimized) and opens Edge in
+full-screen kiosk mode. Press Alt+F4 to exit the display; close the server window to stop
+tracking.
+
+The display is served at `http://localhost:8095`. Other devices on the same network can use
+the LAN address printed in the server window. To start on login, place a shortcut to
+`start_display.bat` in `shell:startup`.
+
+To preview without an API key: `start_display.bat --demo` (simulated buses).
+
+From a terminal:
+
+```
+python tracker.py            # single snapshot
+python tracker.py --watch    # continuous
+python tracker.py --stops    # stops chosen for each route
+python server.py [--demo]    # server only
+```
+
+## The display
+
+| Panel | Contents |
 | --- | --- |
-| `routes` | Bus route numbers, as strings. |
-| `minutes_to_get_out_the_door` | Elevator and lobby time before the walk. |
-| `minutes_from_stop_to_desk` | Time from reaching the building to sitting down, added after the walk. |
-| `max_walk_to_stop_m` | Ignore stops farther than this from home or work. |
-| `stop_overrides` | Force specific stops: `{"146": {"home": "1064", "work": "1105"}}`. |
-| `poll_seconds`, `idle_poll_seconds`, `active_hours` | How often to ask CTA, and when. |
-| `port`, `host` | Where the display is served. `"127.0.0.1"` keeps it on this PC only. |
+| Next bus | Countdown to the next catchable bus at your stop, and a countdown to when you need to leave. The status moves from "Plenty of time" to "Get ready" (5 min) to "Leave now" (1 min). |
+| Arrival | Estimated time at your desk, door-to-door duration, and the walk/ride breakdown. |
+| Along the route | Buses plotted by distance from your stop, both inbound and downtown. |
+| Upcoming buses | Next several departures with leave-by time, arrival time, and each bus's position. |
+| Map | Street map with your routes, stops, and live bus positions. Labeled buses are headed to your stop; grey ones are running the opposite direction. |
 
-**API budget:** each refresh uses about 3 calls. At 30 seconds, that's roughly 7,000 calls
-a day, well under CTA's 100,000/day limit. If CTA reports the limit was hit, the tracker
-backs off to one try every 15 minutes.
+CTA service alerts for your routes scroll along the bottom bar.
 
-## Files
+### How times are calculated
 
-- `cta.py`: CTA Bus Tracker v3 client and time handling (Chicago time, no tz database needed)
-- `tracker.py`: finds your stops and builds the departure board; also the terminal CLI
-- `server.py`: serves `web/` and polls CTA in the background (the key stays on this PC)
-- `demo.py`: simulated buses in the same JSON shape as the real API
-- `web/`: the display (HTML/CSS/JS)
+- **At your stop:** CTA's arrival prediction for your stop.
+- **Leave by:** arrival at stop − walking time − `minutes_to_get_out_the_door`.
+- **Off the bus:** CTA's prediction for the same vehicle at your work stop. When CTA hasn't
+  published a prediction that far out, it's extrapolated from the bus's current pace and
+  marked "est."
+- **At desk:** off the bus + walking time + `minutes_from_stop_to_desk`.
+
+Walking time is straight-line distance × `walk_detour_factor` at `walk_speed_mph`.
+
+## Configuration
+
+Addresses, preferred buses, the two timing buffers and the API key are edited in Settings on
+the display. Everything else is in `config.json`; restart the display after changing it.
+
+| Setting | Description |
+| --- | --- |
+| `walk_speed_mph`, `walk_detour_factor` | Walking time model. |
+| `catch_grace_seconds` | How far past the leave-by time a bus still counts as catchable (shown as "Hurry"). |
+| `max_walk_to_stop_m` | Farthest a stop can be from home or work (meters). |
+| `stop_overrides` | Pin specific stops per route, e.g. `{"22": {"home": "1234", "work": "5678"}}`. |
+| `poll_seconds`, `idle_poll_seconds`, `active_hours` | Refresh rate inside and outside active hours. Outside active hours the display dims slightly. |
+| `host`, `port` | Server address. Use `127.0.0.1` to keep it local to this machine. |
+
+Each refresh makes about three API calls. At the default 30-second interval that's roughly
+7,000 calls a day, well under CTA's 100,000/day limit. If the limit is reached, the tracker
+backs off to one attempt every 15 minutes.
+
+## Troubleshooting
+
+| Symptom | Cause |
+| --- | --- |
+| Launcher window closes immediately | Python isn't installed or isn't on `PATH`. |
+| "Setup" message on screen | An address or the API key is missing. Open Settings. |
+| Address not found | Try the street address rather than a building name, or add ", Chicago, IL". |
+| "Server offline" | The server window was closed. Run `start_display.bat` again. |
+| Display is slightly dimmed | Outside `active_hours`. |
+| Map is blank | No internet connection (map tiles load from OpenStreetMap). |
+
+## Project layout
+
+```
+cta.py              CTA Bus Tracker v3 client and Chicago time handling
+tracker.py          Route and stop selection, timing, and the terminal interface
+geocode.py          Address lookup (US Census geocoder, then OpenStreetMap)
+settings.py         Saves what's entered on the Settings screen
+server.py           Local web server; polls CTA in the background
+demo.py             Simulated feed in the same format as the real API
+start_display.bat   Launches the server and a full-screen browser
+web/                Display (HTML/CSS/JS); Leaflet is vendored in web/vendor
+```
+
+The API key is only used server-side and is never sent to the browser.
+
+Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+Maps rendered with [Leaflet](https://leafletjs.com/) (BSD-2-Clause).

@@ -9,6 +9,7 @@ Only the Python standard library is used, so nothing needs to be pip-installed.
 
 import json
 import socket
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -141,6 +142,7 @@ class CTAClient:
         self._fetch = fetch or self._http_get
         self.calls_today = 0
         self._calls_day = date.today()
+        self._count_lock = threading.Lock()
         self.warnings = []
 
     # -- plumbing ----------------------------------------------------------
@@ -163,10 +165,11 @@ class CTAClient:
             raise CTAError("CTA sent a response that isn't valid JSON") from None
 
     def _count_call(self):
-        today = date.today()
-        if today != self._calls_day:
-            self._calls_day, self.calls_today = today, 0
-        self.calls_today += 1
+        with self._count_lock:   # route discovery calls in parallel
+            today = date.today()
+            if today != self._calls_day:
+                self._calls_day, self.calls_today = today, 0
+            self.calls_today += 1
 
     def call(self, method, list_key, **params):
         """Call `method` and return the list stored under `list_key` (possibly empty)."""

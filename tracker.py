@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from cta import (
 
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "config.json"
+LOCAL_SETTINGS_NAME = "settings.local.json"   # written by the Settings screen; git-ignored
 
 FT_PER_M = 3.28084
 M_PER_MILE = 1609.344
@@ -34,7 +36,7 @@ M_PER_MILE = 1609.344
 DEFAULTS = {
     "api_key": "",
     "routes": [],
-    "home": {"label": "Home", "lat": None, "lon": None},   # real values come from .env
+    "home": {"label": "Home", "lat": None, "lon": None},   # set in Settings (or .env)
     "work": {"label": "Work", "lat": None, "lon": None},
     "walk_speed_mph": 3.0,
     "walk_detour_factor": 1.3,
@@ -52,6 +54,10 @@ DEFAULTS = {
 }
 
 REDISCOVER_SECONDS = 6 * 3600       # refresh patterns (detours change them)
+AUTO_REDISCOVER_SECONDS = 12 * 3600 # re-pick routes automatically (scans every route)
+MAX_AUTO_ROUTES = 5
+AUTO_SLACK_MINUTES = 12             # keep routes within this many minutes of the fastest
+MIN_RIDE_FT = 2640                  # under half a mile you'd just walk
 NO_PLAN_RETRY_SECONDS = 600         # if no route fits, don't hammer getpatterns
 ALERTS_SECONDS = 600
 LIMIT_BACKOFF_SECONDS = 900
@@ -72,6 +78,15 @@ def read_env_file(path):
             key, value = line.split("=", 1)
             values[key.strip()] = value.strip().strip("'\"")
     return values
+
+
+def read_local_settings(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
 
 
 def load_config(path=CONFIG_PATH):
@@ -103,6 +118,16 @@ def load_config(path=CONFIG_PATH):
         for axis in ("lat", "lon"):
             value = to_float(private(f"{prefix}_{axis.upper()}"), cfg[place][axis])
             cfg[place][axis] = to_float(value)
+    # Anything saved from the Settings screen wins.
+    local = read_local_settings(Path(path).resolve().parent / LOCAL_SETTINGS_NAME)
+    for place in ("home", "work"):
+        saved = local.get(place)
+        if isinstance(saved, dict) and saved.get("lat") is not None:
+            cfg[place].update({k: saved[k] for k in ("label", "address", "matched", "lat", "lon") if k in saved})
+            cfg[place]["lat"], cfg[place]["lon"] = to_float(cfg[place]["lat"]), to_float(cfg[place]["lon"])
+    for key in ("routes", "minutes_to_get_out_the_door", "minutes_from_stop_to_desk"):
+        if key in local:
+            cfg[key] = local[key]
     cfg["routes"] = [str(r).strip().upper() for r in as_list(cfg["routes"]) if str(r).strip()]
     return cfg
 
@@ -167,6 +192,8 @@ class Tracker:
         self.client = client
         self.demo = demo
         self.routes = list(cfg["routes"])
+        self.auto = not self.routes          # no preferred buses: pick them from home & work
+        self.status_message = None
         self.patterns = {}
         self.plans = {}
         self.route_names = {}
@@ -207,24 +234,62 @@ class Tracker:
     def discover(self):
         names = {str(r.get("rt")): r.get("rtnm", "") for r in self.client.get_routes()}
         self.route_names = names
-        self.unknown_routes = [rt for rt in self.routes if rt not in names]
+        if self.auto:
+            wanted = list(names)             # every CTA route; keep the ones that fit
+        else:
+            self.unknown_routes = [rt for rt in self.routes if rt not in names]
+            wanted = [rt for rt in self.routes if rt not in self.unknown_routes]
+
         patterns, plans = {}, {}
         self.silent_routes = []
-        for rt in self.routes:
-            if rt in self.unknown_routes:
-                continue
-            ptrs = self.client.get_patterns(rt=rt)
+        for rt, ptrs in self._fetch_patterns(wanted):
+            if isinstance(ptrs, CTAError):
+                if self.auto:
+                    continue                 # one bad route shouldn't stop the scan
+                raise ptrs
             if not ptrs:
                 self.silent_routes.append(rt)
             for ptr in ptrs:
                 pattern = Pattern(ptr, rt)
                 patterns[pattern.pid] = pattern
                 plan = self._make_plan(pattern)
-                if plan:
+                if plan and (not self.auto or plan.ride_ft >= MIN_RIDE_FT):
                     plans[pattern.pid] = plan
+
+        if self.auto:
+            self.routes = self._choose_routes(plans)
+            plans = {pid: p for pid, p in plans.items() if p.pattern.rt in self.routes}
+            patterns = {pid: p for pid, p in patterns.items() if p.rt in self.routes}
+            self.silent_routes = []
         self.patterns, self.plans = patterns, plans
         self.discovered_at = time.time()
         self._rebuild_geometry()
+
+    def _fetch_patterns(self, route_ids):
+        """getpatterns for several routes at once; errors come back in place of the list."""
+        def fetch(rt):
+            try:
+                return rt, self.client.get_patterns(rt=rt)
+            except CTAError as exc:
+                return rt, exc
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            return list(pool.map(fetch, route_ids))
+
+    def trip_minutes(self, plan):
+        """Rough door-to-door time for ranking routes (walks plus ride at an average bus speed)."""
+        ride = plan.ride_ft / 5280 / self.cfg["fallback_bus_mph"] * 60
+        return self.walk_minutes(plan.walk_to_m) + ride + self.walk_minutes(plan.walk_from_m)
+
+    def _choose_routes(self, plans):
+        best = {}
+        for plan in plans.values():
+            rt, minutes = plan.pattern.rt, self.trip_minutes(plan)
+            best[rt] = min(minutes, best.get(rt, minutes))
+        if not best:
+            return []
+        fastest = min(best.values())
+        ranked = sorted(best, key=best.get)
+        return [rt for rt in ranked if best[rt] <= fastest + AUTO_SLACK_MINUTES][:MAX_AUTO_ROUTES]
 
     def _make_plan(self, pattern):
         if not pattern.stops:
@@ -291,7 +356,7 @@ class Tracker:
         return max(plans, key=lambda p: (not p.pattern.detour, len(p.pattern.stops), p.pattern.pid))
 
     def _rebuild_geometry(self):
-        """Route shapes for the radar map and trajectory strip (home-upstream through work)."""
+        """Route shapes for the map and the along-the-route strip (home-upstream through work)."""
         shapes = []
         for rt in self.routes:
             plan = self._main_plan(rt)
@@ -330,20 +395,19 @@ class Tracker:
     def poll(self):
         now = time.time()
         self.client.warnings.clear()
+        self.status_message = None
         missing = []
         if not self.demo and not self.client.api_key:
-            missing.append("No CTA API key yet: put CTA_API_KEY=your-key in the .env file.")
+            missing.append("a CTA API key")
         for place in ("home", "work"):
             if self.cfg[place]["lat"] is None or self.cfg[place]["lon"] is None:
-                prefix = place.upper()
-                missing.append(f"No {place} location yet: put {prefix}_LAT and {prefix}_LON "
-                               f"(and optionally {prefix}_LABEL) in the .env file.")
-        if not self.routes:
-            missing.append("No bus routes yet: add your route numbers to config.json (\"routes\": [\"146\", ...]).")
+                missing.append(f"your {place} address")
         if missing:
-            return self._state(now, error=" ".join(missing) + " Then restart.", setup=True)
+            listed = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " and " + missing[-1]
+            return self._state(now, error=f"Open Settings and add {listed}.", setup=True)
         try:
-            due = now - self.discovered_at > (REDISCOVER_SECONDS if self.plans else NO_PLAN_RETRY_SECONDS)
+            refresh = AUTO_REDISCOVER_SECONDS if self.auto else REDISCOVER_SECONDS
+            due = now - self.discovered_at > (refresh if self.plans else NO_PLAN_RETRY_SECONDS)
             if due:
                 self.discover()
             if not self.plans:
@@ -364,8 +428,11 @@ class Tracker:
             return (f"CTA has no active patterns for {', '.join(self.silent_routes)} right now "
                     "(not running at this hour?). Retrying every 10 minutes.")
         limit = self.cfg["max_walk_to_stop_m"]
+        if self.auto:
+            return (f"No CTA bus route stops within {limit} m of both home and work. Check the "
+                    "addresses in Settings, or raise max_walk_to_stop_m in config.json.")
         return (f"None of routes {', '.join(self.routes)} stop within {limit} m of both home and work. "
-                "Raise max_walk_to_stop_m or set stop_overrides in config.json.")
+                "Clear the preferred buses in Settings to pick routes automatically.")
 
     def _refresh_alerts(self, now):
         if now - self.alerts_at < ALERTS_SECONDS or self.demo:
@@ -546,19 +613,19 @@ class Tracker:
                       if stpid == plan.work["stpid"]), None)
             b["arrive_work_stop"] = t
 
-        # 4) Everything for the radar
+        # 4) Every bus on your routes, for the map
         toward_work = {p.pattern.pid for p in self.plans.values()}
         next_eta = {}
         for a in arrivals:
             next_eta.setdefault(a["vid"], a["arrive_stop"])
-        radar = [{
+        on_map = [{
             "vid": v["vid"], "rt": v["rt"], "lat": v["lat"], "lon": v["lon"], "hdg": v["hdg"],
             "toward_work": v["pid"] in toward_work or v["vid"] in next_eta,
             "eta": next_eta.get(v["vid"]),
         } for v in vehicles.values() if v["lat"] is not None]
 
         self.updated_at = now
-        state = self._state(now, arrivals=arrivals, inflight=inflight, vehicles=radar)
+        state = self._state(now, arrivals=arrivals, inflight=inflight, vehicles=on_map)
         self.last_good = state
         return state
 
@@ -574,6 +641,7 @@ class Tracker:
             if plan:
                 entry.update({
                     "rtdir": plan.pattern.rtdir,
+                    "trip_minutes": round(self.trip_minutes(plan)),
                     "home_stop": {"id": plan.home["stpid"], "name": plan.home["name"],
                                   "walk_m": round(plan.walk_to_m)},
                     "work_stop": {"id": plan.work["stpid"], "name": plan.work["name"],
@@ -596,6 +664,8 @@ class Tracker:
             "setup_needed": setup,
             "warnings": list(dict.fromkeys(self.client.warnings))[:5],
             "demo": self.demo,
+            "auto_routes": self.auto,
+            "status_message": self.status_message,
             "active": self.is_active(now),
             "home": self.cfg["home"],
             "work": self.cfg["work"],
@@ -618,6 +688,12 @@ class Tracker:
 # ----------------------------------------------------------------------
 # Terminal output
 # ----------------------------------------------------------------------
+
+def placeholder_state(tracker, message):
+    """State to show while a (re)configured tracker does its first lookup."""
+    tracker.status_message = message
+    return tracker._state(time.time())
+
 
 def pick_next(arrivals, now, grace):
     """The first bus you can still make (canceled/no-pickup trips don't count)."""
@@ -694,6 +770,9 @@ def build(demo=False, config_path=CONFIG_PATH):
         from demo import DemoFeed
         if not cfg["routes"]:
             cfg["routes"] = list(DemoFeed.ROUTES)
+        for place, spot in (("home", DemoFeed.HOME), ("work", DemoFeed.WORK)):
+            if cfg[place]["lat"] is None:
+                cfg[place].update(spot)
         return Tracker(cfg, CTAClient("demo", fetch=DemoFeed(cfg["routes"]).fetch), demo=True)
     return Tracker(cfg, CTAClient(cfg["api_key"]))
 

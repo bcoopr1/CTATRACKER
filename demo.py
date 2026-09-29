@@ -47,7 +47,6 @@ LOCAL_PATH = [
     ("Sheridan & Grace", 41.9507, -87.6490, True),
     ("", 41.9489, -87.6462, False),
     ("Inner Lake Shore & Addison", 41.9471, -87.6433, True),
-    ("Inner Lake Shore & Cornelia", 41.9456, -87.6427, True),
     ("Inner Lake Shore & Roscoe", 41.9434, -87.6418, True),
     ("Inner Lake Shore & Belmont", 41.9397, -87.6401, True),
     ("Inner Lake Shore & Wellington", 41.9361, -87.6386, True),
@@ -131,6 +130,9 @@ class _SimPattern:
 
 class DemoFeed:
     ROUTES = ("146", "151")
+    # Stand-in places for trying the demo before anything is set up.
+    HOME = {"label": "Home", "lat": 41.9330, "lon": -87.6395}
+    WORK = {"label": "Office", "lat": 41.8962, "lon": -87.6230}
 
     def __init__(self, routes):
         self.routes = []

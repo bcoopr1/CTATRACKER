@@ -1,11 +1,8 @@
 {
-  "_help": "Edit this file, then restart. Keys starting with _ are notes and are ignored.",
+  "_help": "Edit this file, then restart. Keys starting with _ are notes and are ignored. Addresses, the API key, preferred buses and the two timing buffers are easier to set from Settings on the display, which overrides the values here.",
 
-  "_api_key_help": "Your CTA key lives in the .env file next to this one (CTA_API_KEY=...), which .gitignore keeps out of git.",
-  "_routes_help": "Bus route numbers as strings, e.g. [\"146\", \"151\"]. Stops near home and work are found automatically.",
-  "routes": [],
-
-  "_places_help": "Home and work (HOME_LABEL/HOME_LAT/HOME_LON, WORK_LABEL/WORK_LAT/WORK_LON) are also kept in .env so they stay out of git.",
+  "_routes_help": "Optional. Leave empty to pick routes automatically from your home and work addresses.",
+  "routes": [146, 136, 151],
 
   "_timing_help": "Minutes added before the walk (elevator, lobby) and after it (walk into the building, elevator up).",
   "minutes_to_get_out_the_door": 3,

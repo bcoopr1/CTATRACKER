@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Commute Control 95</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000080'/%3E%3Ccircle cx='8' cy='8' r='4' fill='%233ef2ff'/%3E%3Cellipse cx='8' cy='8' rx='7' ry='2' fill='none' stroke='%23ffb52e' stroke-width='1.2'/%3E%3C/svg%3E">
+<title>Commute</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%230c1612'/%3E%3Crect x='3' y='4' width='10' height='7' fill='%238ff0b8'/%3E%3Crect x='4' y='5' width='8' height='3' fill='%230c1612'/%3E%3Crect x='4' y='11' width='2' height='2' fill='%238ff0b8'/%3E%3Crect x='10' y='11' width='2' height='2' fill='%238ff0b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=VT323&display=swap">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,13 +16,11 @@
 
 <main id="desktop">
 
-  <!-- ============ NEXT BUS ============ -->
+  <!-- Next bus -->
   <section class="win" id="win-hero">
     <header class="titlebar">
-      <svg class="ticon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="#fff" stroke="#000" /><path d="M8 3.5V8l3 2" stroke="#000" stroke-width="1.6" fill="none"/></svg>
-      <span class="ttext">T-MINUS.EXE <span class="tsub">Next bus to your stop</span></span>
+      <span class="ttext">Next bus</span>
       <span class="tflag" id="hero-tflag"></span>
-      <span class="tbtns" aria-hidden="true"><i>_</i><i>&#9633;</i><i>&times;</i></span>
     </header>
     <div class="screen" id="hero">
       <div class="hero-live">
@@ -35,13 +34,13 @@
         </div>
         <div class="hero-main">
           <div class="hero-count-wrap">
-            <div class="kicker">BUS AT YOUR STOP IN</div>
+            <div class="kicker">At your stop in</div>
             <div class="countdown" id="hero-count">--:--</div>
             <div class="hero-stop" id="hero-stop">&nbsp;</div>
           </div>
           <div class="beacon standby" id="hero-beacon">
-            <div class="beacon-head"><i class="lamp"></i><b id="beacon-title">STANDBY</b></div>
-            <div class="kicker">LEAVE HOME IN</div>
+            <div class="beacon-head"><i class="lamp"></i><b id="beacon-title">&nbsp;</b></div>
+            <div class="kicker">Leave home in</div>
             <div class="beacon-count" id="beacon-count">--:--</div>
             <div class="beacon-sub" id="beacon-sub">&nbsp;</div>
           </div>
@@ -50,28 +49,26 @@
         <div class="hero-tip" id="hero-tip" hidden></div>
       </div>
       <div class="hero-empty">
-        <div class="kicker">NO LAUNCH WINDOW</div>
-        <div class="empty-big" id="empty-title">Scanning&hellip;</div>
-        <div class="empty-sub" id="empty-sub">Waiting for the first telemetry from CTA.</div>
+        <div class="kicker">Next bus</div>
+        <div class="empty-big" id="empty-title">Loading&hellip;</div>
+        <div class="empty-sub" id="empty-sub">Waiting for the first update from CTA.</div>
       </div>
     </div>
     <footer class="statusbar">
-      <span id="st-bus">Bus --</span>
+      <span id="st-bus">&nbsp;</span>
       <span class="grow" id="st-where">&nbsp;</span>
       <span id="st-dist">&nbsp;</span>
       <span id="st-load">&nbsp;</span>
     </footer>
   </section>
 
-  <!-- ============ ARRIVAL AT WORK ============ -->
+  <!-- Arrival at work -->
   <section class="win" id="win-dest">
     <header class="titlebar">
-      <svg class="ticon" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="1" width="10" height="14" fill="#c0c0c0" stroke="#000"/><path d="M5 3h2v2H5zM9 3h2v2H9zM5 7h2v2H5zM9 7h2v2H9zM7 11h2v4H7z" fill="#000080"/></svg>
-      <span class="ttext">ARRIVAL.EXE <span class="tsub" id="dest-tsub">Work</span></span>
-      <span class="tbtns" aria-hidden="true"><i>_</i><i>&#9633;</i><i>&times;</i></span>
+      <span class="ttext">Arrival <span class="tsub" id="dest-tsub"></span></span>
     </header>
     <div class="screen" id="dest">
-      <div class="kicker">AT YOUR DESK</div>
+      <div class="kicker">At your desk</div>
       <div class="dest-time"><span id="dest-time">--:--</span><span class="ampm" id="dest-ampm"></span></div>
       <div class="dest-total" id="dest-total">&nbsp;</div>
       <div class="legs" id="dest-legs">
@@ -80,8 +77,8 @@
         <div class="leg leg-walk" id="leg-in"><b>WALK</b><span>--</span></div>
       </div>
       <div class="dest-lines">
-        <div><span class="dim">LEAVE HOME</span> <b id="dest-leave">--</b></div>
-        <div><span class="dim">OFF THE BUS</span> <b id="dest-off">--</b></div>
+        <div><span class="dim">Leave home</span> <b id="dest-leave">--</b></div>
+        <div><span class="dim">Off the bus</span> <b id="dest-off">--</b></div>
         <div class="dest-exit" id="dest-exit">&nbsp;</div>
       </div>
     </div>
@@ -91,24 +88,19 @@
     </footer>
   </section>
 
-  <!-- ============ TRAJECTORY ============ -->
+  <!-- Along the route -->
   <section class="win" id="win-track">
     <header class="titlebar">
-      <svg class="ticon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 11h11" stroke="#fff" stroke-width="2"/><path d="M10 7l5 4-5 4z" fill="#fff"/><circle cx="4" cy="5" r="2.5" fill="#ffb52e"/></svg>
-      <span class="ttext">TRAJECTORY.EXE <span class="tsub" id="track-tsub">Buses along your route</span></span>
-      <span class="tbtns" aria-hidden="true"><i>_</i><i>&#9633;</i><i>&times;</i></span>
+      <span class="ttext">Along the route <span class="tsub" id="track-tsub"></span></span>
     </header>
     <div class="screen"><svg id="traj" role="img" aria-label="Buses approaching your stop"></svg></div>
   </section>
 
-  <!-- ============ UPCOMING ============ -->
+  <!-- Upcoming -->
   <section class="win" id="win-list">
     <header class="titlebar">
-      <svg class="ticon" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="1" width="12" height="14" fill="#fff" stroke="#000"/><path d="M4 4h8M4 7h8M4 10h8M4 13h5" stroke="#000080"/></svg>
-      <span class="ttext">MANIFEST.TXT <span class="tsub">Upcoming departures</span></span>
-      <span class="tbtns" aria-hidden="true"><i>_</i><i>&#9633;</i><i>&times;</i></span>
+      <span class="ttext">Upcoming buses</span>
     </header>
-    <nav class="menubar" aria-hidden="true"><span><u>F</u>ile</span><span><u>E</u>dit</span><span><u>V</u>iew</span><span><u>H</u>elp</span></nav>
     <div class="listview">
       <table>
         <thead><tr><th>Route</th><th>Heading to</th><th>At your stop</th><th>Leave by</th><th>At desk</th><th class="col-where">Where the bus is</th></tr></thead>
@@ -121,66 +113,92 @@
     </footer>
   </section>
 
-  <!-- ============ RADAR ============ -->
-  <section class="win" id="win-radar">
+  <!-- Map -->
+  <section class="win" id="win-map">
     <header class="titlebar">
-      <svg class="ticon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="#021" stroke="#3f8"/><circle cx="8" cy="8" r="3.5" fill="none" stroke="#3f8"/><path d="M8 8L14 4" stroke="#3f8" stroke-width="1.5"/></svg>
-      <span class="ttext">RADAR.EXE <span class="tsub">Orbital tracking</span></span>
-      <span class="tbtns" aria-hidden="true"><i>_</i><i>&#9633;</i><i>&times;</i></span>
+      <span class="ttext">Map <span class="tsub">Live bus positions</span></span>
     </header>
-    <nav class="menubar" aria-hidden="true"><span><u>F</u>ile</span><span><u>V</u>iew</span><span><u>T</u>elemetry</span></nav>
-    <div class="screen radar-screen"><svg id="radar" role="img" aria-label="Map of buses near your route"></svg></div>
+    <div class="screen map-screen"><div id="map" role="img" aria-label="Map of buses near your route"></div></div>
     <footer class="statusbar">
-      <span class="grow" id="radar-status">&nbsp;</span>
-      <span id="radar-coords">&nbsp;</span>
+      <span class="grow" id="map-status">&nbsp;</span>
     </footer>
   </section>
 </main>
 
 <footer id="taskbar">
-  <button class="start" type="button" tabindex="-1">
-    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="5.5" fill="#3ef2ff"/><circle cx="8" cy="8" r="1.6" fill="#fff" opacity=".8"/><ellipse cx="10" cy="10" rx="9.2" ry="3" fill="none" stroke="#ffb52e" stroke-width="1.6" transform="rotate(-18 10 10)"/></svg>
-    <b>Mission</b>
-  </button>
-  <div class="tasks">
-    <span class="task active">T-MINUS</span>
-    <span class="task">ARRIVAL</span>
-    <span class="task">RADAR</span>
+  <div class="brand">
+    <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="3" width="12" height="8" fill="#0b2a6f"/><rect x="3" y="4" width="10" height="3" fill="#8ff0b8"/><rect x="3" y="11" width="3" height="2" fill="#0b2a6f"/><rect x="10" y="11" width="3" height="2" fill="#0b2a6f"/></svg>
+    <b>Commute</b>
   </div>
-  <div class="ticker" id="ticker"><div class="ticker-text" id="ticker-text">Establishing uplink&hellip;</div></div>
+  <button type="button" class="tb-btn" id="open-settings">Settings</button>
+  <div class="ticker" id="ticker"><div class="ticker-text" id="ticker-text">Connecting&hellip;</div></div>
   <div class="tray">
     <i class="led" id="led"></i>
-    <span id="tray-link">BOOT</span>
+    <span id="tray-link">Starting</span>
     <span class="tray-sep"></span>
     <span id="tray-clock">--:--</span>
   </div>
 </footer>
 
-<div id="dialog-layer" hidden>
+<div id="dialog-layer" class="modal-layer" hidden>
   <section class="win dialog" role="alertdialog" aria-labelledby="dlg-title" aria-describedby="dlg-msg">
-    <header class="titlebar"><span class="ttext" id="dlg-title">Commute Control</span><span class="tbtns" aria-hidden="true"><i>&times;</i></span></header>
+    <header class="titlebar"><span class="ttext" id="dlg-title">Commute</span></header>
     <div class="dialog-body">
       <div class="dialog-icon" id="dlg-icon" aria-hidden="true"></div>
-      <div>
-        <p id="dlg-msg"></p>
-        <ol id="dlg-steps" hidden></ol>
-      </div>
+      <p id="dlg-msg"></p>
     </div>
     <div class="dialog-buttons"><button type="button" class="btn95" id="dlg-ok">OK</button></div>
   </section>
 </div>
 
-<div id="boot" aria-hidden="true">
-  <div class="boot-logo">
-    <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="30" fill="#3ef2ff"/><circle cx="50" cy="50" r="8" fill="#fff" opacity=".55"/><ellipse cx="60" cy="60" rx="56" ry="17" fill="none" stroke="#ffb52e" stroke-width="7" transform="rotate(-18 60 60)"/></svg>
-    <div>
-      <div class="boot-name">Commute Control<sup>95</sup></div>
-      <div class="boot-tag">CTA BusTime uplink &middot; Home &rarr; Work</div>
+<div id="settings-layer" class="modal-layer" hidden>
+  <form class="win dialog settings" id="settings-form" novalidate aria-labelledby="settings-title">
+    <header class="titlebar"><span class="ttext" id="settings-title">Settings</span></header>
+    <div class="settings-body">
+      <label class="field">
+        <span>Home address</span>
+        <input name="home_address" autocomplete="street-address" placeholder="e.g. 3200 N Clark St">
+        <small id="home-matched"></small>
+      </label>
+      <label class="field">
+        <span>Work address</span>
+        <input name="work_address" placeholder="Street address or building name">
+        <small id="work-matched"></small>
+      </label>
+      <label class="field">
+        <span>Preferred buses <em>(optional)</em></span>
+        <input name="routes" placeholder="e.g. 146, 151" autocomplete="off">
+        <small id="routes-note">Leave blank to pick automatically.</small>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Minutes to get out the door</span>
+          <input name="door_min" type="number" min="0" max="60" step="1" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Minutes to desk</span>
+          <input name="desk_min" type="number" min="0" max="60" step="1" inputmode="numeric">
+        </label>
+      </div>
+      <label class="field">
+        <span>CTA Bus Tracker API key</span>
+        <input name="api_key" type="password" autocomplete="off" spellcheck="false">
+      </label>
+      <p class="settings-msg" id="settings-msg" role="status"></p>
     </div>
-  </div>
+    <div class="dialog-buttons">
+      <button type="submit" class="btn95" id="settings-save">Save</button>
+      <button type="button" class="btn95" id="settings-cancel">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div id="boot" aria-hidden="true">
+  <div class="boot-name">Commute</div>
   <div class="boot-bar"><div></div></div>
 </div>
 
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

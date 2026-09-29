@@ -1,18 +1,13 @@
 'use strict';
-/* Commute Control 95 — living-room display for the CTA commute tracker.
+/* Commute — living-room display for the CTA bus tracker.
    Polls /api/state from server.py and redraws; countdowns tick locally every second. */
 
 const REFRESH_MS = 5000;
 const TZ = 'America/Chicago';
-const ROUTE_COLORS = ['#3ef2ff', '#ffb52e', '#ff5ce1', '#9dff4d', '#a894ff', '#ff7a45'];
+const ROUTE_COLORS = ['#8ff0b8', '#f5c36b', '#8ecbff', '#d4a5ff', '#ff9577', '#e3e39a'];
+const INK = '#c6f3d8', DIM = '#6f9985', AMBER = '#f5c36b', SCREEN = '#0c1612';
+const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // no key needed; attribution required
 const LOAD_LABEL = { EMPTY: 'Seats open', HALF_EMPTY: 'Some seats', FULL: 'Crowded' };
-// Chicago's street grid: 800 address numbers per mile, so these are exact enough for a map.
-const STREETS = [
-  ['Foster', 41.9760], ['Lawrence', 41.9688], ['Montrose', 41.9616], ['Irving Park', 41.9543],
-  ['Addison', 41.9471], ['Belmont', 41.9398], ['Diversey', 41.9325], ['Fullerton', 41.9253],
-  ['Armitage', 41.9180], ['North Ave', 41.9107], ['Division', 41.9036], ['Chicago Ave', 41.8966],
-  ['Grand', 41.8918], ['Lake', 41.8857], ['Madison', 41.8820], ['Jackson', 41.8781], ['Roosevelt', 41.8674],
-];
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -107,8 +102,8 @@ async function refresh() {
 }
 
 function onState() {
-  document.body.classList.toggle('sleep', !state.active);
-  renderRadar();
+  document.body.classList.toggle('idle', !state.active);
+  renderMap();
   renderTicker();
   renderDialog();
   tick();
@@ -128,22 +123,23 @@ function tick() {
   renderTray(t);
 }
 
-/* ------------------------------------------------------------------ T-MINUS */
+/* ------------------------------------------------------------------ next bus */
 
 function emptyReason(t) {
-  if (!state) return ['Scanning…', 'Waiting for the first telemetry from CTA.'];
+  if (!state) return ['Loading…', 'Waiting for the first update from CTA.'];
+  if (state.status_message) return ['Setting up', state.status_message];
   if (state.setup_needed) return ['Setup needed', state.error];
-  if (state.error && !state.stale) return ['No signal', state.error];
+  if (state.error && !state.stale) return ['Can’t reach CTA', state.error];
   const routes = state.routes.map((r) => '#' + r.rt).join(', ');
-  if (!state.active) return ['Night mode', `Outside your active hours. Checking ${routes} every few minutes.`];
-  if ((state.arrivals || []).length) return ['Next bus leaves too soon', 'Every predicted bus is out of reach. Hang tight for the next prediction.'];
+  if (!state.active) return ['Quiet hours', `Outside your active hours, so ${routes} is checked every few minutes.`];
+  if ((state.arrivals || []).length) return ['Nothing you can catch', 'The buses CTA knows about are too close to make. More will show up soon.'];
   return ['No buses predicted', `CTA has no predictions for ${routes} at your stop. Service may not be running right now.`];
 }
 
 function renderHero(hero, t) {
   const el = $('#hero');
   el.classList.toggle('empty', !hero);
-  $('#hero-tflag').textContent = state?.stale ? 'SIGNAL LOST' : state?.demo ? 'DEMO' : '';
+  $('#hero-tflag').textContent = state?.stale ? 'Offline' : state?.demo ? 'Demo' : '';
 
   if (!hero) {
     const [title, sub] = emptyReason(t);
@@ -173,13 +169,13 @@ function renderHero(hero, t) {
   const leaveIn = hero.leave_by - t;
   let mode, title, sub;
   if (leaveIn > 300) {
-    [mode, title, sub] = ['standby', 'STANDBY', `by ${clock(hero.leave_by)}`];
+    [mode, title, sub] = ['standby', 'Plenty of time', `by ${clock(hero.leave_by)}`];
   } else if (leaveIn > 60) {
-    [mode, title, sub] = ['prepare', 'GET READY', `out by ${clock(hero.leave_by)}`];
+    [mode, title, sub] = ['prepare', 'Get ready', `by ${clock(hero.leave_by)}`];
   } else if (leaveIn > 0) {
-    [mode, title, sub] = ['go', 'GO NOW', `${Math.round(hero.walk_to_stop_min)} min walk to the stop`];
+    [mode, title, sub] = ['go', 'Leave now', hero.walk_to_stop_min < 1 ? 'it’s right outside' : `${Math.round(hero.walk_to_stop_min)} min walk to the stop`];
   } else {
-    [mode, title, sub] = ['run', 'RUN FOR IT', `bus in ${mmss(toStop)}`];
+    [mode, title, sub] = ['run', 'Hurry', `bus in ${mmss(toStop)}`];
   }
   const beacon = $('#hero-beacon');
   for (const m of ['standby', 'prepare', 'go', 'run']) beacon.classList.toggle(m, m === mode);
@@ -206,7 +202,7 @@ function renderHero(hero, t) {
   $('#st-load').textContent = LOAD_LABEL[hero.load] || '';
 }
 
-/* ------------------------------------------------------------------ ARRIVAL */
+/* ------------------------------------------------------------------ arrival */
 
 function renderDest(hero, t) {
   if (state) $('#dest-tsub').textContent = state.work.label;
@@ -214,7 +210,7 @@ function renderDest(hero, t) {
   if (!hero) {
     $('#dest-time').textContent = '--:--';
     $('#dest-ampm').textContent = '';
-    $('#dest-total').textContent = 'AWAITING LAUNCH WINDOW';
+    $('#dest-total').textContent = 'Waiting for a bus';
     for (const id of ['#dest-leave', '#dest-off']) $(id).textContent = '--';
     $('#dest-exit').textContent = '';
     $('#dest-src').textContent = '';
@@ -240,7 +236,7 @@ function renderDest(hero, t) {
     : 'Arrival time estimated from bus pace';
 }
 
-/* ------------------------------------------------------------------ TRAJECTORY */
+/* ------------------------------------------------------------------ along the route */
 
 function busGlyph(x, y, size, color, extra = '') {
   const w = size * 2.3, h = size;
@@ -248,8 +244,8 @@ function busGlyph(x, y, size, color, extra = '') {
     <rect width="${w}" height="${h}" rx="${h * 0.2}" fill="${color}"/>
     <rect x="${w * 0.07}" y="${h * 0.18}" width="${w * 0.6}" height="${h * 0.34}" fill="#03101a"/>
     <rect x="${w * 0.74}" y="${h * 0.18}" width="${w * 0.19}" height="${h * 0.52}" fill="#03101a"/>
-    <circle cx="${w * 0.24}" cy="${h}" r="${h * 0.2}" fill="#03060e" stroke="${color}" stroke-width="${h * 0.08}"/>
-    <circle cx="${w * 0.72}" cy="${h}" r="${h * 0.2}" fill="#03060e" stroke="${color}" stroke-width="${h * 0.08}"/>
+    <circle cx="${w * 0.24}" cy="${h}" r="${h * 0.2}" fill="${SCREEN}" stroke="${color}" stroke-width="${h * 0.08}"/>
+    <circle cx="${w * 0.72}" cy="${h}" r="${h * 0.2}" fill="${SCREEN}" stroke="${color}" stroke-width="${h * 0.08}"/>
   </g>`;
 }
 
@@ -260,7 +256,7 @@ function renderTrajectory(hero, t) {
   const fs = clamp(Math.min(H * 0.12, W * 0.016), 11, 34);
   const g = geometry.routes.find((r) => r.rt === hero?.rt) || geometry.routes[0];
   if (!state || !g) {
-    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="#6f8fa6" font-size="${fs * 1.4}" text-anchor="middle">AWAITING ROUTE GEOMETRY</text>`;
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="${DIM}" font-size="${fs * 1.4}" text-anchor="middle">Waiting for route data</text>`;
     return;
   }
   $('#track-tsub').textContent = `#${g.rt} ${g.rtdir.toLowerCase()} · ${(g.ride_ft / 5280).toFixed(1)} mi ride`;
@@ -275,29 +271,27 @@ function renderTrajectory(hero, t) {
     : xHome + (Math.min(ft, ride) / ride) * (xR - xHome));
   const yLine = H * 0.6;
   const color = routeColor(g.rt);
-  let s = `<defs><filter id="tglow" x="-20%" y="-200%" width="140%" height="500%">
-      <feGaussianBlur stdDeviation="${fs * 0.22}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter></defs>`;
+  let s = '';
 
   // track: dashed on the way in, solid for your ride
   s += `<line x1="${xL}" y1="${yLine}" x2="${xHome}" y2="${yLine}" stroke="${color}" stroke-opacity=".45" stroke-width="${fs * 0.16}" stroke-dasharray="${fs * 0.5} ${fs * 0.35}"/>`;
-  s += `<line x1="${xHome}" y1="${yLine}" x2="${xR}" y2="${yLine}" stroke="${color}" stroke-width="${fs * 0.28}" filter="url(#tglow)"/>`;
+  s += `<line x1="${xHome}" y1="${yLine}" x2="${xR}" y2="${yLine}" stroke="${color}" stroke-width="${fs * 0.28}"/>`;
   for (let m = 1; m * 5280 < up; m++) {
     const x = X(-m * 5280);
-    s += `<line x1="${x}" y1="${yLine - fs * 0.35}" x2="${x}" y2="${yLine + fs * 0.35}" stroke="#6f8fa6"/>`;
-    s += `<text x="${x}" y="${yLine + fs * 1.3}" fill="#6f8fa6" font-size="${fs}" text-anchor="middle">${m} MI</text>`;
+    s += `<line x1="${x}" y1="${yLine - fs * 0.35}" x2="${x}" y2="${yLine + fs * 0.35}" stroke="${DIM}"/>`;
+    s += `<text x="${x}" y="${yLine + fs * 1.3}" fill="${DIM}" font-size="${fs}" text-anchor="middle">${m} MI</text>`;
   }
   for (const st of g.stops) {
-    s += `<circle cx="${X(st.offset_ft).toFixed(1)}" cy="${yLine}" r="${fs * 0.17}" fill="#03060e" stroke="${color}" stroke-width="${fs * 0.08}"/>`;
+    s += `<circle cx="${X(st.offset_ft).toFixed(1)}" cy="${yLine}" r="${fs * 0.17}" fill="${SCREEN}" stroke="${color}" stroke-width="${fs * 0.08}"/>`;
   }
 
   // your stop and your office
-  s += `<line x1="${xHome}" y1="${yLine - fs * 0.9}" x2="${xHome}" y2="${yLine + fs * 0.9}" stroke="#fff" stroke-width="${fs * 0.14}"/>`;
-  s += `<text x="${xHome}" y="${yLine + fs * 1.5}" fill="#fff" font-size="${fs * 1.05}" text-anchor="middle">▲ YOUR STOP</text>`;
-  s += `<text x="${xHome}" y="${yLine + fs * 2.55}" fill="#d9f6ff" font-size="${fs}" text-anchor="middle">${esc(g.home_stop.name)}</text>`;
-  s += `<rect x="${xR - fs * 0.35}" y="${yLine - fs * 0.7}" width="${fs * 0.7}" height="${fs * 1.4}" fill="#ffb52e"/>`;
-  s += `<text x="${xR}" y="${yLine + fs * 1.5}" fill="#ffb52e" font-size="${fs * 1.05}" text-anchor="end">${esc(state.work.label.toUpperCase())} ▲</text>`;
-  s += `<text x="${xR}" y="${yLine + fs * 2.55}" fill="#d9f6ff" font-size="${fs}" text-anchor="end">${esc(g.work_stop.name)}</text>`;
+  s += `<line x1="${xHome}" y1="${yLine - fs * 0.9}" x2="${xHome}" y2="${yLine + fs * 0.9}" stroke="${INK}" stroke-width="${fs * 0.14}"/>`;
+  s += `<text x="${xHome}" y="${yLine + fs * 1.5}" fill="${INK}" font-size="${fs * 1.05}" text-anchor="middle">▲ YOUR STOP</text>`;
+  s += `<text x="${xHome}" y="${yLine + fs * 2.55}" fill="${INK}" font-size="${fs}" text-anchor="middle">${esc(g.home_stop.name)}</text>`;
+  s += `<rect x="${xR - fs * 0.35}" y="${yLine - fs * 0.7}" width="${fs * 0.7}" height="${fs * 1.4}" fill="${AMBER}"/>`;
+  s += `<text x="${xR}" y="${yLine + fs * 1.5}" fill="${AMBER}" font-size="${fs * 1.05}" text-anchor="end">${esc(state.work.label.toUpperCase())} ▲</text>`;
+  s += `<text x="${xR}" y="${yLine + fs * 2.55}" fill="${INK}" font-size="${fs}" text-anchor="end">${esc(g.work_stop.name)}</text>`;
 
   // buses: positions glide toward your stop between server updates
   const items = [];
@@ -314,7 +308,7 @@ function renderTrajectory(hero, t) {
     if (-ft > up) far.push(label);
     else items.push({ x: X(ft), rt: a.rt, hero: hero && a.key === hero.key, dim: !catchable(a, t), label });
   }
-  s += `<text x="${xL}" y="${yLine + fs * 2.55}" fill="#6f8fa6" font-size="${fs}">◀ ${
+  s += `<text x="${xL}" y="${yLine + fs * 2.55}" fill="${DIM}" font-size="${fs}">◀ ${
     far.length ? 'FARTHER: ' + esc(far.slice(0, 3).join(' · ')) : 'INBOUND'}</text>`;
   for (const b of state.inflight || []) {
     if (!seen.has(b.vid)) items.push({ x: X(b.track_ft), rt: b.rt, dim: true, label: `#${b.rt}`, small: true });
@@ -343,7 +337,7 @@ function renderTrajectory(hero, t) {
   svg.innerHTML = s;
 }
 
-/* ------------------------------------------------------------------ MANIFEST */
+/* ------------------------------------------------------------------ upcoming list */
 
 function renderList(hero, t) {
   const body = $('#list-body');
@@ -370,130 +364,116 @@ function renderList(hero, t) {
   const ago = state.updated_at ? Math.max(0, Math.round(t - state.updated_at)) : null;
   $('#list-status').textContent = ago == null ? 'No data yet'
     : `Updated ${ago < 90 ? ago + 's' : Math.round(ago / 60) + ' min'} ago · refresh every ${state.settings.poll_seconds}s · ${state.api_calls_today} API calls today`;
-  $('#list-routes').textContent = state.routes
+  $('#list-routes').textContent = (state.auto_routes && state.routes.length ? 'Picked automatically: ' : '') + state.routes
     .map((r) => (r.found ? `#${r.rt} from ${r.home_stop.name}` : `#${r.rt}: no nearby stops`)).join('   ');
 }
 
-/* ------------------------------------------------------------------ RADAR */
+/* ------------------------------------------------------------------ map */
 
-function renderRadar() {
-  const svg = $('#radar');
-  const W = svg.clientWidth, H = svg.clientHeight;
-  if (!W || !H || !state) return;
-  const t = now();
-  const fs = clamp(Math.min(W * 0.032, H * 0.024), 11, 30);
-  const { home, work } = state;
-  if (home.lat == null || work.lat == null) {
-    svg.innerHTML = '';
+const map = { view: null, routes: null, buses: new Map(), drawn: '', bounds: null };
+
+function fitMap() {
+  if (!map.view || !map.bounds) return;
+  map.view.invalidateSize();
+  map.view.fitBounds(map.bounds, { padding: [24, 24] });
+}
+
+function placeMarker(lat, lon, cls, label, color) {
+  const html = `<div class="place ${cls}" style="--c:${color}"><i></i><span>${esc(label)}</span></div>`;
+  return L.marker([lat, lon], {
+    icon: L.divIcon({ className: '', html, iconSize: [0, 0] }), interactive: false, keyboard: false, zIndexOffset: 2000,
+  });
+}
+
+function renderMap() {
+  const el = $('#map');
+  if (!state) return;
+  if (!window.L) {
+    el.innerHTML = '<div class="map-error">The map couldn’t load.</div>';
     return;
   }
+  const { home, work } = state;
+  if (home.lat == null || work.lat == null) return;
+  const t = now();
 
-  const tracked = (state.vehicles || []).filter((v) => v.eta && v.eta > t - 60 && v.eta - t < 45 * 60);
-  const pts = [[home.lat, home.lon], [work.lat, work.lon]];
-  for (const r of geometry.routes) for (const p of r.path) pts.push(p);
-  for (const v of tracked) pts.push([v.lat, v.lon]);
-  const lats = pts.map((p) => p[0]), lons = pts.map((p) => p[1]);
-  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-  const midLon = (Math.min(...lons) + Math.max(...lons)) / 2;
-  const kx = Math.cos((midLat * Math.PI) / 180);
-  const spanY = Math.max(Math.max(...lats) - Math.min(...lats), 0.02);
-  const spanX = Math.max((Math.max(...lons) - Math.min(...lons)) * kx, 0.01);
-  const scale = Math.min(W / (spanX * 1.3), H / (spanY * 1.15));
-  const P = (lat, lon) => [W / 2 + (lon - midLon) * kx * scale, H / 2 - (lat - midLat) * scale];
-  const [hx, hy] = P(home.lat, home.lon);
-  const [wx, wy] = P(work.lat, work.lon);
-  const R = Math.hypot(W, H);
-
-  let s = `<defs>
-    <filter id="rglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${fs * 0.3}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <linearGradient id="sweep" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#4dff88" stop-opacity=".32"/><stop offset="1" stop-color="#4dff88" stop-opacity="0"/></linearGradient>
-  </defs>`;
-
-  // street grid (latitude lines) and range rings around home
-  const latTop = midLat + H / 2 / scale, latBottom = midLat - H / 2 / scale;
-  for (const [name, lat] of STREETS) {
-    if (lat > latTop || lat < latBottom) continue;
-    const y = P(lat, midLon)[1];
-    s += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#1d5a45" stroke-dasharray="2 6"/>`;
-    s += `<text x="${fs * 0.4}" y="${y - fs * 0.25}" fill="#3fb88a" font-size="${fs * 0.85}">${name.toUpperCase()}</text>`;
+  if (!map.view) {
+    map.view = L.map(el, { zoomControl: false, zoomSnap: 0.25, scrollWheelZoom: false, keyboard: false });
+    map.view.attributionControl.setPrefix(false);
+    L.tileLayer(TILES, { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map.view);
+    map.routes = L.layerGroup().addTo(map.view);
   }
-  const pxPerMile = scale / 69.05;
-  for (let m = 1; m <= 12 && m * pxPerMile < R; m++) {
-    const r = m * pxPerMile;
-    s += `<circle cx="${hx}" cy="${hy}" r="${r}" fill="none" stroke="#1f7a5a" stroke-opacity=".5"/>`;
-    s += `<text x="${hx + r * 0.72}" y="${hy + r * 0.69}" fill="#2f9470" font-size="${fs * 0.75}">${m} MI</text>`;
-  }
-  const a = (-38 * Math.PI) / 180;
-  s += `<g transform="translate(${hx},${hy})"><g>
-      <path d="M0 0L${R} 0A${R} ${R} 0 0 0 ${R * Math.cos(a)} ${R * Math.sin(a)}Z" fill="url(#sweep)"/>
-      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="8s" repeatCount="indefinite"/>
-    </g></g>`;
-  s += `<text transform="translate(${W - fs * 0.7},${H / 2}) rotate(90)" fill="#2a7fa0" font-size="${fs}" text-anchor="middle" letter-spacing="${fs * 0.5}">LAKE MICHIGAN</text>`;
 
-  // routes, then the walk legs, then home & office
-  for (const r of geometry.routes) {
-    const c = routeColor(r.rt);
-    const d = r.path.map((p, i) => (i ? 'L' : 'M') + P(p[0], p[1]).map((n) => n.toFixed(1)).join(' ')).join('');
-    s += `<path d="${d}" fill="none" stroke="${c}" stroke-width="${fs * 0.22}" stroke-linejoin="round" stroke-linecap="round" stroke-opacity=".85" filter="url(#rglow)"/>`;
-    for (const st of r.stops) {
-      const [x, y] = P(st.lat, st.lon);
-      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${fs * 0.13}" fill="#010806" stroke="${c}" stroke-width="${fs * 0.07}"/>`;
-    }
-    const [sx, sy] = P(r.home_stop.lat, r.home_stop.lon);
-    const [ex, ey] = P(r.work_stop.lat, r.work_stop.lon);
-    s += `<line x1="${hx}" y1="${hy}" x2="${sx}" y2="${sy}" stroke="#ffb52e" stroke-width="${fs * 0.12}" stroke-dasharray="${fs * 0.2} ${fs * 0.2}"/>`;
-    s += `<line x1="${ex}" y1="${ey}" x2="${wx}" y2="${wy}" stroke="#ffb52e" stroke-width="${fs * 0.12}" stroke-dasharray="${fs * 0.2} ${fs * 0.2}"/>`;
-  }
-  s += `<circle cx="${hx}" cy="${hy}" r="${fs * 0.5}" fill="none" stroke="#fff" stroke-width="${fs * 0.1}">
-      <animate attributeName="r" values="${fs * 0.5};${fs * 1.6}" dur="2s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="1;0" dur="2s" repeatCount="indefinite"/></circle>`;
-  s += `<circle cx="${hx}" cy="${hy}" r="${fs * 0.38}" fill="#fff"/>`;
-  s += `<text x="${hx - fs * 0.9}" y="${hy + fs * 0.35}" fill="#fff" font-size="${fs * 1.1}" text-anchor="end">HOME</text>`;
-  s += `<rect x="${wx - fs * 0.4}" y="${wy - fs * 0.4}" width="${fs * 0.8}" height="${fs * 0.8}" fill="#ffb52e" transform="rotate(45 ${wx} ${wy})"/>`;
-  s += `<text x="${wx - fs * 0.9}" y="${wy + fs * 0.35}" fill="#ffb52e" font-size="${fs * 1.1}" text-anchor="end">${esc(state.work.label.toUpperCase())}</text>`;
-
-  // buses: bright = heading your way, grey = other direction
-  let visible = 0;
-  const placed = [{ x: hx - fs * 2, y: hy + fs * 0.35, w: fs * 3 }, { x: wx - fs * 6, y: wy + fs * 0.35, w: fs * 7 }];
-  const labelSpot = (x, y, w) => {
-    for (let i = 0; i < 4; i++) {
-      const ly = y + i * fs * 1.05;
-      if (!placed.some((p) => Math.abs(p.x - x) < Math.max(p.w, w) && Math.abs(p.y - ly) < fs)) {
-        placed.push({ x, y: ly, w });
-        return ly;
+  // Routes, stops and the two walks are redrawn only when the route shapes change.
+  const key = `${geometry.version}|${home.lat},${home.lon}|${work.lat},${work.lon}`;
+  if (map.drawn !== key) {
+    map.drawn = key;
+    map.routes.clearLayers();
+    const bounds = L.latLngBounds([[home.lat, home.lon], [work.lat, work.lon]]);
+    for (const r of geometry.routes) {
+      const c = routeColor(r.rt);
+      L.polyline(r.path, { color: SCREEN, weight: 8, opacity: 0.6, interactive: false }).addTo(map.routes);
+      L.polyline(r.path, { color: c, weight: 4, opacity: 0.95, interactive: false }).addTo(map.routes);
+      for (const st of r.stops) {
+        L.circleMarker([st.lat, st.lon], {
+          radius: 3, color: c, weight: 1.5, fillColor: SCREEN, fillOpacity: 1, interactive: false,
+        }).addTo(map.routes);
       }
+      const walk = { color: AMBER, weight: 2.5, dashArray: '3 5', interactive: false };
+      L.polyline([[home.lat, home.lon], [r.home_stop.lat, r.home_stop.lon]], walk).addTo(map.routes);
+      L.polyline([[r.work_stop.lat, r.work_stop.lon], [work.lat, work.lon]], walk).addTo(map.routes);
+      for (const p of r.path) bounds.extend(p);
     }
-    return null;
-  };
-  const ordered = [...(state.vehicles || [])].sort((p, q) => (p.eta || Infinity) - (q.eta || Infinity));
-  for (const v of ordered) {
-    const [x, y] = P(v.lat, v.lon);
-    if (x < -fs || x > W + fs || y < -fs || y > H + fs) continue;
-    visible++;
-    const c = v.toward_work ? routeColor(v.rt) : '#5f7f74';
-    const z = v.toward_work ? fs * 0.6 : fs * 0.4;
-    s += `<path transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${v.hdg || 0})" d="M0 ${-z}L${z * 0.7} ${z * 0.8}L0 ${z * 0.4}L${-z * 0.7} ${z * 0.8}Z" fill="${c}"${v.toward_work ? ' filter="url(#rglow)"' : ''}/>`;
-    if (v.eta && v.eta > t - 60 && v.eta - t < 45 * 60) {
-      const label = `#${v.rt} ${minsLabel(v.eta - t)}`;
-      const ly = labelSpot(x + z * 1.3, y + fs * 0.35, label.length * fs * 0.5);
-      if (ly != null) s += `<text x="${x + z * 1.3}" y="${ly}" fill="${c}" font-size="${fs}">${esc(label)}</text>`;
+    placeMarker(home.lat, home.lon, 'home', 'Home', INK).addTo(map.routes);
+    placeMarker(work.lat, work.lon, 'work left', work.label, AMBER).addTo(map.routes);
+    map.bounds = bounds;
+    fitMap();
+  }
+
+  // Buses: labelled when they're coming to your stop, small otherwise, grey going the other way.
+  const seen = new Set();
+  let inbound = 0;
+  for (const v of state.vehicles || []) {
+    if (v.lat == null) continue;
+    seen.add(v.vid);
+    const coming = v.eta && v.eta > t - 60 && v.eta - t < 45 * 60;
+    if (coming) inbound++;
+    const cls = coming ? '' : v.toward_work ? 'quiet' : 'other';
+    const color = v.toward_work || coming ? routeColor(v.rt) : '';
+    const html = `<div class="pin ${cls}"${color ? ` style="--c:${color}"` : ''}>` +
+      `<span class="arrow" style="transform:rotate(${v.hdg || 0}deg)"><svg viewBox="0 0 10 10"><path d="M5 .5L9.5 9.5 5 7 .5 9.5Z"/></svg></span>` +
+      `<span>${esc(`#${v.rt} ${coming ? minsLabel(v.eta - t) : ''}`)}</span></div>`;
+    const icon = L.divIcon({ className: '', html, iconSize: [0, 0] });
+    const z = coming ? 1000 : v.toward_work ? 500 : 0;
+    let m = map.buses.get(v.vid);
+    if (!m) {
+      m = L.marker([v.lat, v.lon], { icon, interactive: false, keyboard: false, zIndexOffset: z }).addTo(map.view);
+      map.buses.set(v.vid, m);
+    } else {
+      m.setLatLng([v.lat, v.lon]).setIcon(icon).setZIndexOffset(z);
     }
   }
-  svg.innerHTML = s;
-  $('#radar-status').textContent = `${visible} bus${visible === 1 ? '' : 'es'} in view · ${tracked.length} inbound to your stop`;
-  $('#radar-coords').textContent = `${home.lat.toFixed(3)}°N ${Math.abs(home.lon).toFixed(3)}°W`;
+  for (const [vid, m] of map.buses) {
+    if (!seen.has(vid)) {
+      m.remove();
+      map.buses.delete(vid);
+    }
+  }
+  const total = (state.vehicles || []).length;
+  $('#map-status').textContent = `${inbound} coming to your stop · ${total} bus${total === 1 ? '' : 'es'} on your routes`;
 }
 
 /* ------------------------------------------------------------------ taskbar, ticker, dialogs */
 
 function renderTray(t) {
-  let cls = '', text = 'BOOT';
-  if (uplink === 'down') [cls, text] = ['down', 'NO UPLINK'];
-  else if (state?.setup_needed) [cls, text] = ['stale', 'SETUP'];
-  else if (state?.error && !state.stale) [cls, text] = ['down', 'CTA ERROR'];
-  else if (state?.stale) [cls, text] = ['stale', 'SIGNAL LOST'];
-  else if (state?.demo) [cls, text] = ['demo', 'DEMO'];
-  else if (state) [cls, text] = ['ok', 'LIVE'];
+  let cls = '', text = 'Starting';
+  if (uplink === 'down') [cls, text] = ['down', 'Server offline'];
+  else if (state?.setup_needed) [cls, text] = ['stale', 'Setup'];
+  else if (state?.error && !state.stale) [cls, text] = ['down', 'CTA error'];
+  else if (state?.stale) [cls, text] = ['stale', 'Offline'];
+  else if (state?.demo) [cls, text] = ['demo', 'Demo'];
+  else if (state && !state.active) [cls, text] = ['idle', 'Quiet hours'];
+  else if (state?.status_message) [cls, text] = ['idle', 'Loading'];
+  else if (state) [cls, text] = ['ok', 'Live'];
   $('#led').className = `led ${cls}`;
   $('#tray-link').textContent = text;
   $('#tray-clock').textContent = clock(t);
@@ -504,11 +484,11 @@ function renderTicker() {
   const routes = state.routes.map((r) => '#' + r.rt).join(', ') || 'your routes';
   let text;
   if (state.demo) {
-    text = 'DEMO MODE — simulated buses. Add your CTA API key and route numbers to config.json for live tracking.';
+    text = 'Demo mode: these buses are simulated. Run start_display.bat without --demo for the real thing.';
   } else if (alerts.length) {
-    text = alerts.map((a) => `▲ ${a.routes.length ? '#' + a.routes.join('/#') + ' ' : ''}${a.headline.toUpperCase()}: ${a.text}`).join('      ✦      ');
+    text = alerts.map((a) => `${a.routes.length ? '#' + a.routes.join(', #') + ' — ' : ''}${a.headline}: ${a.text}`).join('        •        ');
   } else {
-    text = `ALL SYSTEMS NOMINAL — no CTA service alerts for ${routes}.`;
+    text = `No CTA service alerts for ${routes}.`;
   }
   const el = $('#ticker-text');
   if (el.textContent !== text) {
@@ -519,37 +499,110 @@ function renderTicker() {
 }
 
 function renderDialog() {
-  let title = '', msg = '', icon = 'error', steps = false;
+  let title = '', msg = '', icon = 'error';
   if (state?.setup_needed) {
-    [title, msg, icon, steps] = ['Commute Control Setup', state.error, 'info', true];
+    [title, msg, icon] = ['Setup', state.error, 'info'];
   } else if (state?.error && !state.stale) {
-    [title, msg] = ['CTA BusTime', state.error];
+    [title, msg] = ['CTA Bus Tracker', state.error];
   } else if (uplink === 'down' && !state) {
-    [title, msg] = ['Commute Control', 'Can’t reach the tracker. Is server.py (start_display.bat) running?'];
+    [title, msg] = ['Commute', 'Can’t reach the tracker. Is start_display.bat still running?'];
   }
   dialogSig = title + msg;
-  $('#dialog-layer').hidden = !msg || dismissedSig === dialogSig;
+  const settingsOpen = !$('#settings-layer').hidden;
+  $('#dialog-layer').hidden = !msg || dismissedSig === dialogSig || settingsOpen;
   if (!msg) return;
   $('#dlg-title').textContent = title;
   $('#dlg-msg').textContent = msg;
   $('#dlg-icon').className = `dialog-icon ${icon}`;
-  const ol = $('#dlg-steps');
-  ol.hidden = !steps;
-  if (steps) {
-    ol.innerHTML = '<li>Put <code>CTA_API_KEY=your-key</code> in the <code>.env</code> file in the tracker folder.</li>' +
-      '<li>Open <code>config.json</code>.</li>' +
-      '<li>List your buses, e.g. <code>"routes": ["146", "151"]</code>.</li>' +
-      '<li>Restart <code>start_display.bat</code>.</li>';
-  }
+  $('#dlg-ok').textContent = state?.setup_needed ? 'Open Settings' : 'OK';
 }
 
 $('#dlg-ok').addEventListener('click', () => {
   dismissedSig = dialogSig;
   $('#dialog-layer').hidden = true;
-  refresh();
+  if (state?.setup_needed) openSettings();
+  else refresh();
 });
 
-/* ------------------------------------------------------------------ starfield (the Win95 screensaver, at warp 0.5) */
+/* ------------------------------------------------------------------ settings */
+
+const settingsForm = $('#settings-form');
+
+function settingsMessage(text, isError = false) {
+  const el = $('#settings-msg');
+  el.textContent = text;
+  el.classList.toggle('err', isError);
+}
+
+function routesNote(s) {
+  const list = s.picked.map((p) => `#${p.rt}${p.minutes ? ` (about ${p.minutes} min)` : ''}`).join(', ');
+  if (s.auto) return list ? `Blank means automatic. Currently using ${list}.` : 'Blank means automatic.';
+  return list ? `Using ${list}. Clear this to pick automatically.` : 'Clear this to pick automatically.';
+}
+
+async function openSettings() {
+  $('#dialog-layer').hidden = true;
+  $('#settings-layer').hidden = false;
+  settingsMessage('Loading…');
+  try {
+    const res = await fetch('api/settings', { cache: 'no-store' });
+    const s = await res.json();
+    const f = settingsForm.elements;
+    f.home_address.value = s.home_address;
+    f.work_address.value = s.work_address;
+    f.routes.value = s.routes;
+    f.door_min.value = s.door_min;
+    f.desk_min.value = s.desk_min;
+    f.api_key.value = '';
+    f.api_key.placeholder = s.api_key_set ? 'Saved. Leave blank to keep it.' : 'Paste your key here';
+    $('#home-matched').textContent = s.home_matched ? `Found: ${s.home_matched}` : '';
+    $('#work-matched').textContent = s.work_matched ? `Found: ${s.work_matched}` : '';
+    $('#routes-note').textContent = routesNote(s);
+    settingsMessage('');
+    (s.home_address ? (s.work_address ? f.routes : f.work_address) : f.home_address).focus();
+  } catch (err) {
+    settingsMessage('Couldn’t load the current settings.', true);
+  }
+}
+
+function closeSettings() {
+  $('#settings-layer').hidden = true;
+  $('#open-settings').focus();
+}
+
+settingsForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const save = $('#settings-save');
+  save.disabled = true;
+  settingsMessage('Looking up addresses…');
+  try {
+    const res = await fetch('api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(settingsForm))),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      settingsMessage(body.error || 'Couldn’t save.', true);
+      return;
+    }
+    dismissedSig = null;
+    closeSettings();
+    refresh();
+  } catch (err) {
+    settingsMessage('Couldn’t reach the tracker.', true);
+  } finally {
+    save.disabled = false;
+  }
+});
+
+$('#settings-cancel').addEventListener('click', closeSettings);
+$('#open-settings').addEventListener('click', openSettings);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !$('#settings-layer').hidden) closeSettings();
+});
+
+/* ------------------------------------------------------------------ starfield background */
 
 (function starfield() {
   const canvas = $('#starfield');
@@ -605,7 +658,7 @@ setInterval(() => {
 let resizeTimer;
 addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (state) { renderRadar(); tick(); } }, 150);
+  resizeTimer = setTimeout(() => { fitMap(); if (state) tick(); }, 150);
 });
 
 const bootEl = $('#boot');
@@ -615,3 +668,4 @@ setTimeout(() => bootEl.classList.add('done'), 8000);   // never hide the dashbo
 setInterval(tick, 1000);
 setInterval(refresh, REFRESH_MS);
 refresh();
+if (location.hash === '#settings') openSettings();   // bookmarkable, e.g. from a phone
