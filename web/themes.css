@@ -581,3 +581,355 @@ html[data-theme="candy"] {
 }
 /* Gumdrop weight is for big and short things; longer or smaller text stays regular to read easily. */
 [data-theme="candy"] :is(.leg, .hero-tip, .ticker, .listview tr.sel td) { font-weight: 400; }
+
+/* ================================================================ Candy crew (candyland.js) */
+
+#candy-crew { position: absolute; inset: 0; z-index: 900; overflow: hidden; pointer-events: none; }
+.cc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--fs) * 2.5 * var(--size, 1));
+  height: calc(var(--fs) * 3.35 * var(--size, 1));
+  will-change: transform;
+}
+.cc-flip, .cc-sprite { width: 100%; height: 100%; }
+.cc-sprite { position: relative; transform-origin: 50% 95%; transition: transform .35s ease-in, opacity .4s ease, scale .4s ease; }
+.cc-sprite svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.cc svg :is(.ko-eyes, .brows, .scared-brows, .frown, .gasp, .gun) { display: none; }
+
+/* walking, running */
+.cc svg :is(.leg-l, .leg-r, .arm-l, .arm-r) { transform-box: view-box; transition: transform .2s ease; }
+.cc.walking svg .leg-l { animation: cc-step .34s ease-in-out infinite alternate; }
+.cc.walking svg .leg-r { animation: cc-step .34s ease-in-out infinite alternate-reverse; }
+.cc.running svg .leg-l { animation: cc-step .16s linear infinite alternate; }
+.cc.running svg .leg-r { animation: cc-step .16s linear infinite alternate-reverse; }
+.cc.walking .cc-sprite { animation: cc-bob .34s ease-in-out infinite alternate; }
+.cc.running .cc-sprite { animation: cc-bob .16s linear infinite alternate; }
+@keyframes cc-step { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
+@keyframes cc-bob { to { translate: 0 -2px; } }
+
+/* moods */
+.cc.angry svg .brows, .cc.angry svg .frown { display: inline; }
+.cc.angry svg .mouth { display: none; }
+.cc.angry .cc-sprite svg { filter: drop-shadow(0 0 4px rgba(227, 36, 74, .6)); }
+.cc.throwing svg .arm-r { transform: rotate(-150deg); }
+.cc.armed svg .gun { display: inline; }
+.cc.armed svg .arm-r { transform: rotate(-45deg); }
+.cc.hurt .cc-sprite { animation: cc-shake .12s linear 4; }
+@keyframes cc-shake { 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
+
+/* shot: the body falls over, then vanishes in a poof */
+.cc.ko .cc-sprite { transform: rotate(-88deg) translateX(-20%); }
+.cc.ko svg .eyes, .cc.ko svg .mouth { display: none; }
+.cc.ko svg :is(.ko-eyes, .frown) { display: inline; }
+.cc.poof .cc-sprite { opacity: 0; scale: .2; }
+
+/* sweat drops while running away */
+.cc-sweat { position: absolute; top: 12%; right: -8%; display: none; }
+.cc.running .cc-sweat { display: block; }
+.cc-sweat i {
+  display: block;
+  width: calc(var(--fs) * .32);
+  height: calc(var(--fs) * .45);
+  margin: 0 0 3px;
+  background: #7cc8ff;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  animation: cc-drip .5s linear infinite;
+}
+.cc-sweat i + i { margin-left: 6px; animation-delay: .25s; }
+@keyframes cc-drip { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 4px 8px; } }
+
+/* speech bubbles */
+.cc-bubble {
+  --shift: 0px;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 13em;
+  padding: .35em .75em;
+  background: #fff;
+  color: var(--text);
+  border: 2px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(58, 29, 72, .15);
+  font: 400 calc(var(--fs) * .82)/1.2 var(--font-body);
+  text-align: center;
+  transform: translateX(calc(-50% + var(--shift))) scale(0);
+  transform-origin: 50% 110%;
+  transition: transform .2s cubic-bezier(.3, 1.6, .6, 1);
+}
+.cc-bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - var(--shift));
+  bottom: -8px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border: inherit;
+  border-width: 0 2px 2px 0;
+  transform: translateX(-50%) rotate(45deg);
+}
+.cc-bubble.show { transform: translateX(calc(-50% + var(--shift))) scale(1); }
+.cc-bubble.mad { border-color: #e3244a; color: #b3122f; font-weight: 800; }
+.cc-bubble.bang {
+  background: #ffe14d;
+  border-color: #e3244a;
+  color: #c8102e;
+  font-weight: 800;
+  font-size: calc(var(--fs) * 1.15);
+}
+
+/* props */
+.cc-rock, .cc-bullet, .cc-bonk, .cc-flash { position: absolute; left: 0; top: 0; z-index: 2000; }
+.cc-rock {
+  width: calc(var(--fs) * .7);
+  height: calc(var(--fs) * .58);
+  margin: calc(var(--fs) * -.29) 0 0 calc(var(--fs) * -.35);
+  background: radial-gradient(circle at 35% 30%, #b8b8c2, #6d6d78 70%);
+  border-radius: 45% 55% 50% 48%;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .3);
+}
+.cc-bullet {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #3a3a44;
+  box-shadow: 0 0 0 2px rgba(255, 225, 77, .7);
+}
+.cc-bonk::before, .cc-flash::before {
+  content: "";
+  position: absolute;
+  width: calc(var(--fs) * 1.6);
+  height: calc(var(--fs) * 1.6);
+  margin: calc(var(--fs) * -.8) 0 0 calc(var(--fs) * -.8);
+  background: #ffd23f;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  animation: cc-pop .45s ease-out forwards;
+}
+.cc-flash::before { background: #fff3a0; box-shadow: 0 0 12px #ffd23f; animation-duration: .26s; }
+@keyframes cc-pop { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+
+/* the messy part: blood pools and drops, and blown-off pieces (all fade after ~30 s) */
+.cc-ground { position: absolute; left: 0; top: 0; }   /* sized by candyland.js to match the map */
+.cc-pool {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(.05);
+  background: radial-gradient(ellipse at 45% 40%, #d4192d 0 35%, #9c0016 72%);
+  border-radius: 48% 52% 45% 55% / 55% 45% 58% 42%;
+  box-shadow: inset 0 -2px 0 rgba(60, 0, 8, .25);
+  opacity: .93;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(.2, .7, .3, 1), ease;
+}
+.cc-pool::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  top: 22%;
+  width: 22%;
+  height: 20%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .35);
+}
+.cc-pool.body { border-radius: 42% 58% 52% 48% / 60% 50% 50% 40%; }
+.cc-pool.grown { transform: translate(-50%, -50%) scale(1); }
+.cc-drop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: #b3001b;
+  border-radius: 50%;
+  transition: opacity 2.5s ease;
+}
+.cc-fade { opacity: 0 !important; }
+
+.cc-part {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2000;
+  width: calc(var(--fs) * .95);
+  height: calc(var(--fs) * .75);
+  margin: calc(var(--fs) * -.375) 0 0 calc(var(--fs) * -.475);
+  transition: opacity 2.5s ease;
+  filter: drop-shadow(0 1px 0 rgba(58, 29, 72, .3));
+}
+.cc-part.landed { z-index: 2; }
+/* torn, bloody edge on every piece */
+.cc-part::before {
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 45%;
+  height: 40%;
+  background: #b3001b;
+  border-radius: 40% 60% 50% 50%;
+}
+.gd-chunk {
+  background: radial-gradient(circle at 30% 30%, #fff 0 1.5px, transparent 2px) 0 0 / 8px 8px, var(--body, #35c96a);
+  border: 2px solid var(--dark, #1d7a41);
+  border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%;
+}
+.gd-small { scale: .7; }
+.gd-tiny { scale: .45; }
+.cane-chunk {
+  width: calc(var(--fs) * .55);
+  height: calc(var(--fs) * 1.1);
+  background: repeating-linear-gradient(40deg, var(--stripe, #e3242b) 0 5px, #fff 5px 10px);
+  border: 2px solid var(--dark, #a50f22);
+  border-radius: 999px;
+}
+.cane-short { height: calc(var(--fs) * .6); }
+.cop-cap {
+  width: calc(var(--fs) * 1.1);
+  height: calc(var(--fs) * .5);
+  background: var(--cap, #1b2a5e);
+  border-bottom: 3px solid #0f1a3d;
+  border-radius: 50% 50% 12% 12%;
+}
+.cop-cap::before { right: 40%; bottom: 55%; width: 22%; height: 38%; background: #ffc21a; border-radius: 50%; }
+.rh-chunk {
+  background: radial-gradient(ellipse at 30% 30%, rgba(255, 255, 255, .5) 0 18%, transparent 22%), var(--body, #e3242b);
+  border: 2px solid var(--dark, #9e0d18);
+  border-radius: 55% 45% 50% 50% / 45% 55% 45% 55%;
+}
+.rh-small { scale: .65; }
+.rh-bow {
+  width: calc(var(--fs) * .9);
+  height: calc(var(--fs) * .6);
+  background: var(--bow, #ff5fa8);
+  clip-path: polygon(0 0, 50% 40%, 100% 0, 100% 100%, 50% 60%, 0 100%);
+  filter: none;
+}
+.rh-bow::before { display: none; }
+:is(.gd-leg, .cop-leg, .rh-leg) {
+  width: calc(var(--fs) * .28);
+  height: calc(var(--fs) * .9);
+  border-radius: 999px;
+  background: var(--leg);
+}
+:is(.gd-leg, .cop-leg, .rh-leg)::after {
+  content: "";
+  position: absolute;
+  left: -40%;
+  bottom: -12%;
+  width: 180%;
+  height: 32%;
+  border-radius: 50%;
+  background: var(--leg);
+}
+:is(.gd-leg, .cop-leg, .rh-leg)::before { left: 0; right: auto; top: -8%; bottom: auto; width: 100%; height: 26%; }
+/* legs take --leg from the character; these are fallbacks */
+.gd-leg { --leg: #1d7a41; }
+.cop-leg { --leg: #1b2a5e; }
+.rh-leg { --leg: #8a0f14; }
+
+/* Angry mode button (Candy only; candyland.js shows it) */
+[data-theme="candy"] #angry-toggle[aria-pressed="true"] { background: #e3244a; border-color: #e3244a; color: #fff; }
+[data-theme="candy"] #angry-toggle[aria-pressed="true"]:hover { color: #fff; filter: brightness(1.08); }
+
+/* terrified: brows up, mouth open, pupils shrink, trembling */
+.cc svg .pupil { transform-box: view-box; transition: scale .15s ease; }
+.cc.scared svg :is(.scared-brows, .gasp) { display: inline; }
+.cc.scared svg :is(.mouth, .frown, .brows) { display: none; }
+.cc.scared svg .pupil { scale: .55; }
+.cc.scared .cc-sprite { animation: cc-tremble .09s linear infinite; }
+@keyframes cc-tremble { 25% { translate: -1.2px 0; } 75% { translate: 1.2px 0; } }
+.cc-bubble.scream { border-color: #e3244a; color: #c8102e; font-weight: 800; }
+
+/* headshot: the top of the body is gone, leaving a ragged, bleeding stump */
+.cc.headless .cc-sprite svg { clip-path: inset(calc(var(--cut) * 100%) 0 0 0); }
+.cc.headless svg :is(.eyes, .brows, .scared-brows, .gasp, .mouth) { display: none; }
+.cc-stump {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--cut) * 100% - 3px);
+  display: none;
+  width: var(--stump-w);
+  height: 8px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 65%, #4a000c 0 28%, #9c0016 52%, #d8233a 80%);
+  border-radius: 45% 55% 40% 50% / 70% 65% 35% 30%;
+  clip-path: polygon(0 45%, 8% 10%, 17% 40%, 27% 0, 38% 35%, 50% 5%, 61% 38%, 72% 0, 83% 42%, 92% 12%, 100% 48%, 100% 100%, 0 100%);
+}
+.cc.headless .cc-stump { display: block; }
+.cc.headless.running .cc-sprite, .cc.headless.walking .cc-sprite { animation: none; }
+
+/* the head that flies off: the top of the character with X'd-out eyes and a bloody edge */
+.cc-head { filter: drop-shadow(0 1px 0 rgba(58, 29, 72, .3)); }
+.cc-head svg { display: block; width: 100%; height: 100%; overflow: visible; clip-path: inset(0 0 calc((1 - var(--cut)) * 100%) 0); }
+.cc-head svg :is(.leg-l, .leg-r, .arm-l, .arm-r, .shadow, .eyes, .brows, .scared-brows, .gasp, .mouth, .gun) { display: none; }
+.cc-head svg :is(.ko-eyes, .frown) { display: inline; }
+.cc-part.cc-head::before {
+  left: 20%;
+  right: auto;
+  top: calc(var(--cut) * 100% - 5px);
+  bottom: auto;
+  width: 60%;
+  height: 8px;
+  border-radius: 40% 60% 50% 50%;
+  background: radial-gradient(ellipse at 50% 40%, #4a000c 0 30%, #b3001b 60%, #d8233a 85%);
+}
+
+/* meat chunks */
+.meat {
+  width: calc(var(--fs) * .8 * var(--s, 1));
+  height: calc(var(--fs) * .6 * var(--s, 1));
+  margin: calc(var(--fs) * -.3 * var(--s, 1)) 0 0 calc(var(--fs) * -.4 * var(--s, 1));
+  background:
+    radial-gradient(ellipse at 30% 35%, #f2b8b0 0 10%, transparent 14%),
+    radial-gradient(ellipse at 68% 62%, #f6d2c4 0 9%, transparent 13%),
+    radial-gradient(ellipse at 55% 25%, rgba(255, 255, 255, .45) 0 6%, transparent 10%),
+    radial-gradient(ellipse at 40% 40%, #c62a3c, #7a0716 70%, #4a000c);
+}
+.meat::before { display: none; }
+.meat.m1 { clip-path: polygon(8% 30%, 30% 5%, 62% 12%, 95% 30%, 88% 70%, 60% 95%, 25% 88%, 3% 62%); }
+.meat.m2 { clip-path: polygon(0 45%, 20% 10%, 55% 0, 80% 20%, 100% 55%, 75% 90%, 40% 100%, 12% 80%); }
+.meat.m3 { clip-path: polygon(15% 15%, 50% 0, 90% 18%, 100% 50%, 82% 85%, 45% 100%, 10% 82%, 0 45%); border-radius: 30%; }
+
+/* blood flying through the air */
+.cc-droplet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2000;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #b3001b;
+}
+
+/* the shot: big muzzle flash, a flash across the map, and the screen shakes */
+.cc-flash.big::before {
+  width: calc(var(--fs) * 3.2);
+  height: calc(var(--fs) * 3.2);
+  margin: calc(var(--fs) * -1.6) 0 0 calc(var(--fs) * -1.6);
+  background: radial-gradient(circle, #fff 0 18%, #fff3a0 32%, #ffb400 55%, rgba(255, 120, 0, 0) 72%);
+  clip-path: polygon(50% 0, 58% 36%, 100% 50%, 58% 64%, 50% 100%, 42% 64%, 0 50%, 42% 36%);
+  box-shadow: none;
+}
+.cc-screenflash {
+  position: absolute;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--fx) var(--fy), rgba(255, 252, 220, .95), rgba(255, 236, 150, .55) 25%, rgba(255, 255, 255, .15) 60%, rgba(255, 255, 255, 0) 85%);
+  animation: cc-screenflash .28s ease-out forwards;
+}
+@keyframes cc-screenflash { from { opacity: 1; } to { opacity: 0; } }
+#desktop.cc-quake { animation: cc-quake .45s linear; }
+@keyframes cc-quake {
+  10% { translate: -7px 3px; }
+  20% { translate: 6px -4px; }
+  30% { translate: -5px -2px; }
+  40% { translate: 4px 4px; }
+  55% { translate: -3px 2px; }
+  70% { translate: 2px -1px; }
+  85% { translate: -1px 1px; }
+  100% { translate: 0 0; }
+}

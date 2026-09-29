@@ -75,6 +75,23 @@ python server.py [--demo]    # server only
 
 CTA service alerts for your routes scroll along the bottom bar.
 
+### Themes
+
+Pick a theme in Settings: **Terminal** (retro windows, green phosphor), **Studio** (warm
+charcoal), **Mono** (black and bone) or **Candy** (cotton-candy colors). Add `?theme=mono` (etc.)
+to the address to force a theme on one screen.
+
+Candy adds nine characters to the map, three variations each of Gumdrop Man, Candy Cane Cop
+and Red Hot Babe. They wander around and occasionally talk. A meeting has a 1 in 3 chance of
+turning into a fight: one throws a rock, and then there's a 1 in 2 chance the one who got hit
+pulls a revolver and fires (a headshot, with a flash and screen shake); otherwise they run
+off. It's graphic cartoon violence with blood and gore. The mess fades after about 30 seconds
+and always sits under the route lines and bus labels.
+
+The **Angry mode** button (bottom bar, Candy only) makes every meeting a fight. Add
+`?crew=off` to the address to hide the characters, or `?crew=fight` to preview a shooting
+without waiting.
+
 ### How times are calculated
 
 - **At your stop:** CTA's arrival prediction for your stop.
