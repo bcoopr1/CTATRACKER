@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="terminal">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,9 +7,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%230c1612'/%3E%3Crect x='3' y='4' width='10' height='7' fill='%238ff0b8'/%3E%3Crect x='4' y='5' width='8' height='3' fill='%230c1612'/%3E%3Crect x='4' y='11' width='2' height='2' fill='%238ff0b8'/%3E%3Crect x='10' y='11' width='2' height='2' fill='%238ff0b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&family=Silkscreen&family=VT323&display=swap">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<script>
+  // Apply the last-used theme before first paint; the server's saved choice takes over once loaded.
+  try {
+    document.documentElement.dataset.theme =
+      new URLSearchParams(location.search).get('theme') || localStorage.getItem('commute-theme') || 'terminal';
+  } catch (e) { document.documentElement.dataset.theme = 'terminal'; }
+</script>
 </head>
 <body>
 <canvas id="starfield" aria-hidden="true"></canvas>
@@ -157,7 +165,7 @@
     <div class="settings-body">
       <label class="field">
         <span>Home address</span>
-        <input name="home_address" autocomplete="street-address" placeholder="e.g. 3200 N Clark St">
+        <input name="home_address" autocomplete="street-address" placeholder="e.g. 2400 W Chicago Ave">
         <small id="home-matched"></small>
       </label>
       <label class="field">
@@ -180,6 +188,14 @@
           <input name="desk_min" type="number" min="0" max="60" step="1" inputmode="numeric">
         </label>
       </div>
+      <label class="field">
+        <span>Theme</span>
+        <select name="theme">
+          <option value="terminal">Terminal: retro windows, green phosphor</option>
+          <option value="studio">Studio: warm charcoal, a little retro</option>
+          <option value="mono">Mono: black and bone, minimal</option>
+        </select>
+      </label>
       <label class="field">
         <span>CTA Bus Tracker API key</span>
         <input name="api_key" type="password" autocomplete="off" spellcheck="false">

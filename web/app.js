@@ -4,8 +4,18 @@
 
 const REFRESH_MS = 5000;
 const TZ = 'America/Chicago';
-const ROUTE_COLORS = ['#8ff0b8', '#f5c36b', '#8ecbff', '#d4a5ff', '#ff9577', '#e3e39a'];
-const INK = '#c6f3d8', DIM = '#6f9985', AMBER = '#f5c36b', SCREEN = '#0c1612';
+const THEMES = ['terminal', 'studio', 'mono'];
+const THEME_FROM_URL = new URLSearchParams(location.search).get('theme');
+
+// Drawing colors come from the active theme's CSS variables (style.css, themes.css).
+let ROUTE_COLORS = [], INK = '', DIM = '', AMBER = '', SCREEN = '';
+function loadPalette() {
+  const css = getComputedStyle(document.documentElement);
+  const v = (name) => css.getPropertyValue(name).trim();
+  ROUTE_COLORS = [1, 2, 3, 4, 5, 6].map((i) => v(`--c-route-${i}`));
+  [INK, DIM, AMBER, SCREEN] = ['--c-ink', '--c-dim', '--c-accent', '--c-bg'].map(v);
+}
+loadPalette();
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // no key needed; attribution required
 const LOAD_LABEL = { EMPTY: 'Seats open', HALF_EMPTY: 'Some seats', FULL: 'Crowded' };
 
@@ -101,7 +111,19 @@ async function refresh() {
   renderTray(now());
 }
 
+function applyTheme(name) {
+  if (!THEMES.includes(name)) name = 'terminal';
+  const root = document.documentElement;
+  if (root.dataset.theme === name) return;
+  root.dataset.theme = name;
+  try { localStorage.setItem('commute-theme', name); } catch (err) { /* storage blocked */ }
+  loadPalette();
+  map.drawn = '';                  // redraw the route lines in the new colors
+  if (state) { renderMap(); tick(); }
+}
+
 function onState() {
+  if (!THEME_FROM_URL && $('#settings-layer').hidden) applyTheme(state.settings.theme);
   document.body.classList.toggle('idle', !state.active);
   renderMap();
   renderTicker();
@@ -242,8 +264,8 @@ function busGlyph(x, y, size, color, extra = '') {
   const w = size * 2.3, h = size;
   return `<g transform="translate(${(x - w / 2).toFixed(1)},${(y - h * 1.2).toFixed(1)})" ${extra}>
     <rect width="${w}" height="${h}" rx="${h * 0.2}" fill="${color}"/>
-    <rect x="${w * 0.07}" y="${h * 0.18}" width="${w * 0.6}" height="${h * 0.34}" fill="#03101a"/>
-    <rect x="${w * 0.74}" y="${h * 0.18}" width="${w * 0.19}" height="${h * 0.52}" fill="#03101a"/>
+    <rect x="${w * 0.07}" y="${h * 0.18}" width="${w * 0.6}" height="${h * 0.34}" fill="${SCREEN}"/>
+    <rect x="${w * 0.74}" y="${h * 0.18}" width="${w * 0.19}" height="${h * 0.52}" fill="${SCREEN}"/>
     <circle cx="${w * 0.24}" cy="${h}" r="${h * 0.2}" fill="${SCREEN}" stroke="${color}" stroke-width="${h * 0.08}"/>
     <circle cx="${w * 0.72}" cy="${h}" r="${h * 0.2}" fill="${SCREEN}" stroke="${color}" stroke-width="${h * 0.08}"/>
   </g>`;
@@ -253,7 +275,9 @@ function renderTrajectory(hero, t) {
   const svg = $('#traj');
   const W = svg.clientWidth, H = svg.clientHeight;
   if (!W || !H) return;
-  const fs = clamp(Math.min(H * 0.12, W * 0.016), 11, 34);
+  // The Terminal pixel font runs small; Studio and Mono fonts need less size for the same look.
+  const typeScale = document.documentElement.dataset.theme === 'terminal' ? 1 : 0.8;
+  const fs = clamp(Math.min(H * 0.12, W * 0.016), 11, 34) * typeScale;
   const g = geometry.routes.find((r) => r.rt === hero?.rt) || geometry.routes[0];
   if (!state || !g) {
     svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="${DIM}" font-size="${fs * 1.4}" text-anchor="middle">Waiting for route data</text>`;
@@ -553,6 +577,7 @@ async function openSettings() {
     f.routes.value = s.routes;
     f.door_min.value = s.door_min;
     f.desk_min.value = s.desk_min;
+    f.theme.value = s.theme;
     f.api_key.value = '';
     f.api_key.placeholder = s.api_key_set ? 'Saved. Leave blank to keep it.' : 'Paste your key here';
     $('#home-matched').textContent = s.home_matched ? `Found: ${s.home_matched}` : '';
@@ -569,6 +594,14 @@ function closeSettings() {
   $('#settings-layer').hidden = true;
   $('#open-settings').focus();
 }
+
+function cancelSettings() {
+  closeSettings();
+  if (state && !THEME_FROM_URL) applyTheme(state.settings.theme);   // undo a theme preview
+}
+
+// Preview a theme as soon as it's picked; Save keeps it, Cancel puts the old one back.
+settingsForm.elements.theme.addEventListener('change', (event) => applyTheme(event.target.value));
 
 settingsForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -596,10 +629,10 @@ settingsForm.addEventListener('submit', async (event) => {
   }
 });
 
-$('#settings-cancel').addEventListener('click', closeSettings);
+$('#settings-cancel').addEventListener('click', cancelSettings);
 $('#open-settings').addEventListener('click', openSettings);
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !$('#settings-layer').hidden) closeSettings();
+  if (event.key === 'Escape' && !$('#settings-layer').hidden) cancelSettings();
 });
 
 /* ------------------------------------------------------------------ starfield background */
@@ -624,7 +657,7 @@ document.addEventListener('keydown', (event) => {
   }
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (document.hidden || ts - last < 33) return;
+    if (document.hidden || ts - last < 33 || document.documentElement.dataset.theme !== 'terminal') return;
     const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0;
     last = ts;
     ctx.clearRect(0, 0, w, h);

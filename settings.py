@@ -14,6 +14,7 @@ from geocode import GeocodeError, geocode
 from tracker import LOCAL_SETTINGS_NAME, read_local_settings
 
 KEY_PATTERN = re.compile(r"^[A-Za-z0-9]{16,40}$")
+THEMES = ("terminal", "studio", "mono")
 ROUTE_PATTERN = re.compile(r"[A-Za-z]?\d{1,3}[A-Za-z]?")
 
 
@@ -46,6 +47,7 @@ def describe(tracker):
         "picked": picked,
         "door_min": cfg["minutes_to_get_out_the_door"],
         "desk_min": cfg["minutes_from_stop_to_desk"],
+        "theme": cfg["theme"],
         "api_key_set": bool(cfg["api_key"]),
     }
 
@@ -107,6 +109,10 @@ def save(payload, cfg, folder):
     local["routes"] = routes[:10]
     local["minutes_to_get_out_the_door"] = _minutes(payload.get("door_min"), "Time to get out the door")
     local["minutes_from_stop_to_desk"] = _minutes(payload.get("desk_min"), "Minutes to desk")
+    theme = str(payload.get("theme") or "terminal")
+    if theme not in THEMES:
+        raise SettingsError("Pick one of the listed themes.")
+    local["theme"] = theme
 
     key = str(payload.get("api_key") or "").strip()
     if key:

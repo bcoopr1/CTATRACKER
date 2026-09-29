@@ -1,0 +1,394 @@
+/* Studio and Mono themes. Both replace the Win95 chrome with flat panels; they differ in
+   palette and type. The Terminal theme is style.css on its own. */
+
+/* ================================================================ palettes */
+
+html[data-theme="mono"] {
+  --bg: #0a0a0a;
+  --panel: #0f0f0e;
+  --panel-head: #0f0f0e;
+  --line: #24231f;
+  --line-soft: #1a1917;
+  --line-strong: #3b3934;
+  --text: #ece6d6;
+  --text-2: #b3ac9c;
+  --text-3: #767166;
+  --sel-bg: #1a1916;
+  --sel-mark: var(--text);
+  --urgent: #d9725b;
+
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-num: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-cap: "Inter", "Segoe UI", system-ui, sans-serif;
+  --cap-weight: 500;
+  --cap-size: .7;
+  --cap-spacing: .16em;
+  --num-weight: 250;
+
+  /* names style.css uses */
+  --desk: var(--bg);
+  --crt: var(--panel);
+  --ink: var(--text);
+  --phos: var(--text);
+  --dim: var(--text-3);
+  --amber: var(--text-2);
+  --coral: var(--text);
+  --badge-fg: var(--bg);
+  --pin-other: #5f5b53;
+  --map-filter: invert(1) grayscale(1) brightness(.72) contrast(1.15) sepia(.1);
+
+  /* colors the scripts read */
+  --c-ink: #ece6d6;
+  --c-dim: #767166;
+  --c-accent: #b3ac9c;
+  --c-bg: #0f0f0e;
+  --c-route-1: #ece6d6;
+  --c-route-2: #b9b2a2;
+  --c-route-3: #8f897d;
+  --c-route-4: #d6cbb0;
+  --c-route-5: #a39d90;
+  --c-route-6: #7c776d;
+}
+
+html[data-theme="studio"] {
+  --bg: #11100e;
+  --panel: #191815;
+  --panel-head: #201e1a;
+  --line: #2b2924;
+  --line-soft: #211f1b;
+  --line-strong: #3f3c35;
+  --text: #eee6d3;
+  --text-2: #b8ae99;
+  --text-3: #80786a;
+  --sel-bg: #25221c;
+  --sel-mark: #e3a857;
+  --urgent: #de7a5f;
+
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", Consolas, "Lucida Console", monospace;
+  --font-cap: "Silkscreen", "Lucida Console", Consolas, monospace;
+  --cap-weight: 400;
+  --cap-size: .66;
+  --cap-spacing: .08em;
+  --num-weight: 300;
+
+  --desk: var(--bg);
+  --crt: var(--panel);
+  --ink: var(--text);
+  --phos: #a9c7a0;
+  --dim: var(--text-3);
+  --amber: #e3a857;
+  --coral: #de7a5f;
+  --badge-fg: #14120f;
+  --pin-other: #6c665b;
+  --map-filter: invert(1) grayscale(1) sepia(.4) brightness(.74) contrast(1.1);
+
+  --c-ink: #eee6d3;
+  --c-dim: #80786a;
+  --c-accent: #e3a857;
+  --c-bg: #191815;
+  --c-route-1: #a9c7a0;
+  --c-route-2: #e3a857;
+  --c-route-3: #8fb3cf;
+  --c-route-4: #c9a7d8;
+  --c-route-5: #de8a6a;
+  --c-route-6: #d8d08a;
+}
+
+/* ================================================================ shared flat layout */
+
+:is([data-theme="mono"], [data-theme="studio"]) body { background: var(--bg); }
+:is([data-theme="mono"], [data-theme="studio"]) #starfield { display: none; }
+[data-theme="studio"] body {
+  background: radial-gradient(ellipse 80% 60% at 70% 0%, #1a1814, var(--bg) 70%);
+}
+
+:is([data-theme="mono"], [data-theme="studio"]) .win {
+  padding: 0;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+:is([data-theme="mono"], [data-theme="studio"]) .titlebar {
+  padding: 1em 1.3em .2em;
+  background: transparent;
+  color: var(--text-3);
+  font: var(--cap-weight) calc(var(--fs) * var(--cap-size))/1.3 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  text-transform: uppercase;
+}
+[data-theme="studio"] .titlebar {
+  padding: .55em 1em;
+  background: var(--panel-head);
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .tsub { opacity: .75; }
+:is([data-theme="mono"], [data-theme="studio"]) .tflag {
+  padding: .15em .6em;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--line-strong);
+}
+
+:is([data-theme="mono"], [data-theme="studio"]) .screen {
+  margin: 0;
+  padding: .8em 1.3em 1.1em;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-body);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .map-screen,
+:is([data-theme="mono"], [data-theme="studio"]) #win-track .screen { padding: 0; }
+:is([data-theme="mono"], [data-theme="studio"]) #map { inset: 0; }
+[data-theme="mono"] #win-map .screen { margin: .7em 0 0; border-top: 1px solid var(--line); }
+
+:is([data-theme="mono"], [data-theme="studio"]) .statusbar {
+  margin: 0;
+  padding: .6em 1.3em .7em;
+  gap: 1.4em;
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font: calc(var(--fs) * .78) var(--font-body);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .statusbar > span { padding: 0; box-shadow: none; }
+
+/* ---------------------------------------------------------------- type inside the panels */
+
+:is([data-theme="mono"], [data-theme="studio"]) .kicker {
+  font: var(--cap-weight) calc(var(--fs) * var(--cap-size))/1.4 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  color: var(--text-3);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .rt-badge {
+  padding: .12em .45em;
+  font: 600 calc(var(--fs) * .95)/1.3 var(--font-num);
+  border-radius: 2px;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .hero-route-text b {
+  font: 500 calc(var(--fs) * 1.2)/1.25 var(--font-body);
+  letter-spacing: 0;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .hero-route-text small { font-size: calc(var(--fs) * 1); color: var(--text-2); }
+:is([data-theme="mono"], [data-theme="studio"]) .flag {
+  font: var(--cap-weight) calc(var(--fs) * .6)/1 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  border-width: 1px;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .empty-big {
+  font: 400 calc(var(--fs) * 1.7)/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .empty-sub { font-size: calc(var(--fs) * 1.1); color: var(--text-2); }
+
+:is([data-theme="mono"], [data-theme="studio"]) .countdown,
+:is([data-theme="mono"], [data-theme="studio"]) .beacon-count,
+:is([data-theme="mono"], [data-theme="studio"]) .dest-time {
+  font-family: var(--font-num);
+  font-weight: var(--num-weight);
+  letter-spacing: -.03em;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .countdown { font-size: clamp(54px, 5.8vw, 210px); line-height: .95; }
+:is([data-theme="mono"], [data-theme="studio"]) .beacon-count { font-size: clamp(34px, 3.2vw, 120px); line-height: 1; }
+:is([data-theme="mono"], [data-theme="studio"]) .dest-time { font-size: clamp(50px, 5vw, 190px); line-height: .95; }
+:is([data-theme="mono"], [data-theme="studio"]) .dest-time .ampm { font-size: .3em; letter-spacing: 0; }
+:is([data-theme="mono"], [data-theme="studio"]) .hero-stop { font-size: calc(var(--fs) * 1.1); color: var(--text-2); margin-top: .5em; }
+
+:is([data-theme="mono"], [data-theme="studio"]) .beacon {
+  gap: .35em;
+  padding: .9em 1em 1em;
+  border-width: 1px;
+  background: transparent;
+  transition: background-color .4s ease, border-color .4s ease;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .beacon-head b {
+  font: var(--cap-weight) calc(var(--fs) * .78)/1.2 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  text-transform: uppercase;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .beacon .lamp { width: .6em; height: .6em; }
+:is([data-theme="mono"], [data-theme="studio"]) .beacon-sub { font-size: calc(var(--fs) * 1); color: var(--text-2); }
+/* Mono has no color, so urgency is an inverted block. */
+[data-theme="mono"] .beacon.standby { --bc: var(--text-2); border-color: var(--line-strong); }
+[data-theme="mono"] .beacon.prepare { --bc: var(--text); border-color: var(--text); }
+[data-theme="mono"] :is(.beacon.go, .beacon.run) { --bc: var(--bg); background: var(--text); border-color: var(--text); }
+[data-theme="mono"] :is(.beacon.go, .beacon.run) :is(.beacon-sub, .kicker) { color: var(--bg); opacity: .75; }
+[data-theme="studio"] .beacon { background: color-mix(in srgb, var(--bc) 6%, transparent); }
+
+:is([data-theme="mono"], [data-theme="studio"]) .bar95 {
+  height: 3px;
+  padding: 0;
+  background: var(--line);
+  box-shadow: none;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .bar95-fill { background: var(--text-2); }
+[data-theme="studio"] .bar95 { height: 6px; }
+[data-theme="studio"] .bar95-fill {
+  background: repeating-linear-gradient(90deg, var(--amber) 0 10px, transparent 10px 13px);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .hero-tip { font-size: calc(var(--fs) * 1); color: var(--text-2); }
+[data-theme="studio"] .hero-tip { color: var(--amber); }
+
+:is([data-theme="mono"], [data-theme="studio"]) .dest-total {
+  font: var(--cap-weight) calc(var(--fs) * .75)/1.4 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  color: var(--text-2);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .legs { height: calc(var(--fs) * 2.4); margin: .35em 0; }
+:is([data-theme="mono"], [data-theme="studio"]) .leg {
+  border-width: 1px;
+  font: calc(var(--fs) * 1) var(--font-num);
+  gap: .2em;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .leg b {
+  font: var(--cap-weight) calc(var(--fs) * .55)/1.2 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+}
+[data-theme="mono"] .leg-walk { color: var(--text-3); background: transparent; }
+[data-theme="mono"] .leg-ride { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+:is([data-theme="mono"], [data-theme="studio"]) .dest-lines { font-size: calc(var(--fs) * 1.08); gap: .3em; }
+:is([data-theme="mono"], [data-theme="studio"]) .dest-lines .dim { display: inline-block; min-width: 7.5em; }
+
+/* ---------------------------------------------------------------- map & trajectory */
+
+:is([data-theme="mono"], [data-theme="studio"]) .pin { font: 500 calc(var(--fs) * .95) var(--font-body); }
+:is([data-theme="mono"], [data-theme="studio"]) .pin.quiet { font-size: calc(var(--fs) * .8); }
+:is([data-theme="mono"], [data-theme="studio"]) .pin.other { font-size: calc(var(--fs) * .65); }
+:is([data-theme="mono"], [data-theme="studio"]) .place {
+  font: var(--cap-weight) calc(var(--fs) * .68) var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+}
+:is([data-theme="mono"], [data-theme="studio"]) #map .leaflet-control-attribution { font: calc(var(--fs) * .62) var(--font-body); }
+:is([data-theme="mono"], [data-theme="studio"]) #traj text { font-family: var(--font-body); }
+
+/* ---------------------------------------------------------------- upcoming list */
+
+:is([data-theme="mono"], [data-theme="studio"]) .listview {
+  margin: 0;
+  padding: 0 .6em;
+  background: transparent;
+  box-shadow: none;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .listview table { font: calc(var(--fs) * .98) var(--font-body); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview th {
+  padding: .9em .7em .6em;
+  background: var(--panel);
+  box-shadow: inset 0 -1px var(--line);
+  color: var(--text-3);
+  font: var(--cap-weight) calc(var(--fs) * var(--cap-size)) var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  text-transform: uppercase;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .listview td {
+  padding: .6em .7em;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .listview td small { color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview td .rt-badge { outline: none; font-size: calc(var(--fs) * .85); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview tr.sel td { background: var(--sel-bg); color: var(--text); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview tr.sel td:first-child { box-shadow: inset 2px 0 var(--sel-mark); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview tr.sel td small { color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview tr.missed td { color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview tr.canceled td { color: var(--urgent); }
+:is([data-theme="mono"], [data-theme="studio"]) .listview .tag { font-weight: 600; }
+:is([data-theme="mono"], [data-theme="studio"]) .listview .empty-row td { color: var(--text-3); }
+
+/* ---------------------------------------------------------------- bottom bar */
+
+:is([data-theme="mono"], [data-theme="studio"]) #taskbar {
+  align-items: center;
+  gap: 1.2em;
+  padding: 0 var(--gap);
+  background: var(--bg);
+  color: var(--text-2);
+  border-top: 1px solid var(--line);
+  box-shadow: none;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .brand {
+  padding: 0;
+  color: var(--text);
+  font: var(--cap-weight) calc(var(--fs) * .72) var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  text-transform: uppercase;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .brand svg { display: none; }
+:is([data-theme="mono"], [data-theme="studio"]) .tb-btn,
+:is([data-theme="mono"], [data-theme="studio"]) .btn95 {
+  padding: .45em 1.1em;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+  font: calc(var(--fs) * .85) var(--font-body);
+}
+:is([data-theme="mono"], [data-theme="studio"]) :is(.tb-btn, .btn95):hover { color: var(--text); border-color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) :is(.tb-btn, .btn95):active { box-shadow: none; background: var(--sel-bg); }
+:is([data-theme="mono"], [data-theme="studio"]) :is(.tb-btn, .btn95):focus-visible { outline: 1px solid var(--text-2); outline-offset: 2px; }
+:is([data-theme="mono"], [data-theme="studio"]) .btn95[type="submit"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+:is([data-theme="mono"], [data-theme="studio"]) .ticker {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-2);
+  font: calc(var(--fs) * .95)/1 var(--font-body);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .ticker.calm .ticker-text { color: var(--text-3); }
+[data-theme="studio"] .ticker { color: var(--amber); }
+:is([data-theme="mono"], [data-theme="studio"]) .tray { padding: 0; box-shadow: none; color: var(--text-2); font-family: var(--font-body); }
+:is([data-theme="mono"], [data-theme="studio"]) .tray-sep { background: var(--line); box-shadow: none; }
+:is([data-theme="mono"], [data-theme="studio"]) #tray-clock {
+  color: var(--text);
+  font: 500 calc(var(--fs) * 1.05) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+:is([data-theme="mono"], [data-theme="studio"]) .led { width: .55em; height: .55em; box-shadow: none; }
+[data-theme="mono"] .led.ok { background: var(--text); }
+[data-theme="mono"] .led.demo, [data-theme="mono"] .led.idle { background: transparent; box-shadow: inset 0 0 0 1px var(--text-2); }
+[data-theme="mono"] .led.stale { background: var(--text-3); }
+[data-theme="mono"] .led.down { background: var(--urgent); }
+[data-theme="studio"] .led.ok { background: #a9c7a0; }
+[data-theme="studio"] .led.idle { background: #8fb3cf; }
+[data-theme="studio"] .led.stale { background: #e3a857; }
+[data-theme="studio"] .led.down { background: var(--urgent); }
+
+/* ---------------------------------------------------------------- dialogs & settings */
+
+:is([data-theme="mono"], [data-theme="studio"]) .modal-layer { background: rgba(0, 0, 0, .6); }
+:is([data-theme="mono"], [data-theme="studio"]) .dialog { border-color: var(--line-strong); }
+:is([data-theme="mono"], [data-theme="studio"]) .dialog .titlebar { padding: 1.1em 1.3em .3em; }
+[data-theme="studio"] .dialog .titlebar { padding: .6em 1em; }
+:is([data-theme="mono"], [data-theme="studio"]) :is(.dialog-body, .settings-body) { color: var(--text); font-family: var(--font-body); }
+:is([data-theme="mono"], [data-theme="studio"]) .dialog-icon.info { background: var(--text); color: var(--bg); }
+:is([data-theme="mono"], [data-theme="studio"]) .dialog-icon.error { background: var(--urgent); }
+:is([data-theme="mono"], [data-theme="studio"]) .dialog-buttons { padding: .8em 0 1.1em; }
+:is([data-theme="mono"], [data-theme="studio"]) .field { color: var(--text-2); }
+:is([data-theme="mono"], [data-theme="studio"]) .field em,
+:is([data-theme="mono"], [data-theme="studio"]) .field small { color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) :is(.field input, .field select) {
+  padding: .5em .6em;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+  font-family: var(--font-body);
+}
+:is([data-theme="mono"], [data-theme="studio"]) :is(.field input, .field select):focus {
+  outline: none;
+  border-color: var(--text-2);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .field input::placeholder { color: var(--text-3); }
+:is([data-theme="mono"], [data-theme="studio"]) .settings-msg { color: var(--text-2); }
+:is([data-theme="mono"], [data-theme="studio"]) .settings-msg.err { color: var(--urgent); }
+
+:is([data-theme="mono"], [data-theme="studio"]) .boot-name {
+  font: var(--cap-weight) clamp(18px, 1.6vw, 48px)/1 var(--font-cap);
+  letter-spacing: var(--cap-spacing);
+  text-transform: uppercase;
+  color: var(--text);
+}
+:is([data-theme="mono"], [data-theme="studio"]) .boot-bar { height: 3px; padding: 0; border: 0; background: var(--line); }
+:is([data-theme="mono"], [data-theme="studio"]) .boot-bar div { background: var(--text-2); }

@@ -1,4 +1,5 @@
-/* Commute display — pixel-era window chrome around calm, Nostromo-style phosphor screens.
+/* Commute display. This file is the Terminal theme (pixel-era window chrome around calm,
+   Nostromo-style phosphor screens); themes.css restyles it as Studio or Mono.
    Sized in viewport units so it reads from the couch on a 1080p/4K TV. */
 
 :root {
@@ -25,6 +26,21 @@
   --sky: #8ecbff;
   --coral: #ff9577;
   --lilac: #d4a5ff;
+
+  --desk: #101a2c;
+  --badge-fg: #0c1612;
+  --pin-other: #7a8e85;
+  --map-filter: invert(1) hue-rotate(180deg) grayscale(.35) sepia(.45) hue-rotate(95deg) saturate(1.1) brightness(.9) contrast(.95);
+  --c-ink: #c6f3d8;
+  --c-dim: #6f9985;
+  --c-accent: #f5c36b;
+  --c-bg: #0c1612;
+  --c-route-1: #8ff0b8;
+  --c-route-2: #f5c36b;
+  --c-route-3: #8ecbff;
+  --c-route-4: #d4a5ff;
+  --c-route-5: #ff9577;
+  --c-route-6: #e3e39a;
 
   --font-ui: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", Geneva, Verdana, sans-serif;
   --font-term: "VT323", "Lucida Console", Consolas, "Courier New", monospace;
@@ -54,7 +70,7 @@ html, body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #101a2c;
+  background: var(--desk);
   color: var(--ink);
   font: var(--fs)/1.25 var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -180,7 +196,7 @@ html, body {
   min-width: 2.4em;
   padding: .08em .4em;
   background: var(--rc);
-  color: #0c1612;
+  color: var(--badge-fg);
   font: calc(var(--fs) * 1.05)/1.3 var(--font-label);
 }
 
@@ -343,11 +359,11 @@ html, body {
 /* ---------------------------------------------------------------- map */
 
 .map-screen { padding: 0; }
-#map { position: absolute; inset: calc(var(--u) * 2); background: #0c1612; font-family: var(--font-term); }
+#map { position: absolute; inset: calc(var(--u) * 2); background: var(--crt); font-family: var(--font-term); }
 /* Tint the street map to the terminal's green phosphor */
-#map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(.35) sepia(.45) hue-rotate(95deg) saturate(1.1) brightness(.9) contrast(.95); }
+#map .leaflet-tile-pane { filter: var(--map-filter); }
 #map .leaflet-control-attribution {
-  background: rgba(12, 22, 18, .75);
+  background: color-mix(in srgb, var(--crt) 75%, transparent);
   color: var(--dim);
   font: calc(var(--fs) * .8) var(--font-term);
 }
@@ -362,7 +378,7 @@ html, body {
   font: calc(var(--fs) * 1.3) var(--font-term);
   color: var(--c, var(--phos));
   transform: translate(-.6em, -50%);
-  text-shadow: 0 0 3px #0c1612, 0 0 3px #0c1612, 0 0 6px #0c1612;
+  text-shadow: 0 0 3px var(--crt), 0 0 3px var(--crt), 0 0 6px var(--crt);
 }
 .pin .arrow {
   display: grid;
@@ -371,9 +387,9 @@ html, body {
   height: 1.2em;
   flex: none;
 }
-.pin .arrow svg { width: 100%; height: 100%; fill: currentColor; stroke: #0c1612; stroke-width: 1.5; }
+.pin .arrow svg { width: 100%; height: 100%; fill: currentColor; stroke: var(--crt); stroke-width: 1.5; }
 .pin.quiet { font-size: calc(var(--fs) * .95); }
-.pin.other { color: #7a8e85; font-size: calc(var(--fs) * .75); }
+.pin.other { color: var(--pin-other); font-size: calc(var(--fs) * .75); }
 .pin.quiet span:last-child, .pin.other span:last-child { display: none; }
 .place {
   transform: translate(-50%, -50%);
@@ -385,9 +401,9 @@ html, body {
   display: flex;
   align-items: center;
   gap: .4em;
-  text-shadow: 0 0 3px #0c1612, 0 0 3px #0c1612, 0 0 6px #0c1612;
+  text-shadow: 0 0 3px var(--crt), 0 0 3px var(--crt), 0 0 6px var(--crt);
 }
-.place i { width: .9em; height: .9em; background: var(--c); border: 2px solid #0c1612; flex: none; }
+.place i { width: .9em; height: .9em; background: var(--c); border: 2px solid var(--crt); flex: none; }
 .place.home i { border-radius: 50%; }
 .place.work i { transform: rotate(45deg); }
 .place.left { flex-direction: row-reverse; transform: translate(calc(-100% + .45em), -50%); }
@@ -539,7 +555,7 @@ html, body {
 }
 .field { display: grid; gap: .25em; font-size: calc(var(--fs) * .95); }
 .field em { font-style: normal; color: #555; }
-.field input {
+.field input, .field select {
   width: 100%;
   padding: .35em .5em;
   border: 0;
@@ -548,7 +564,7 @@ html, body {
   font: calc(var(--fs) * 1) var(--font-ui);
   box-shadow: var(--sunken);
 }
-.field input:focus { outline: 1px dotted #000; outline-offset: -5px; }
+.field input:focus, .field select:focus { outline: 1px dotted #000; outline-offset: -5px; }
 .field small { min-height: 1.2em; color: #444; font-size: calc(var(--fs) * .8); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .85em; }
 .settings-msg { min-height: 1.3em; margin: 0; font-size: calc(var(--fs) * .9); color: #000; }
@@ -575,7 +591,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 3vh;
-  background: #0c1612;
+  background: var(--crt);
   transition: opacity .8s ease;
 }
 #boot.done { opacity: 0; pointer-events: none; }

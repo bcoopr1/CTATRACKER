@@ -49,6 +49,7 @@ DEFAULTS = {
     "idle_poll_seconds": 300,
     "active_hours": ["05:00", "23:30"],
     "stop_overrides": {},
+    "theme": "terminal",
     "host": "0.0.0.0",
     "port": 8095,
 }
@@ -125,7 +126,7 @@ def load_config(path=CONFIG_PATH):
         if isinstance(saved, dict) and saved.get("lat") is not None:
             cfg[place].update({k: saved[k] for k in ("label", "address", "matched", "lat", "lon") if k in saved})
             cfg[place]["lat"], cfg[place]["lon"] = to_float(cfg[place]["lat"]), to_float(cfg[place]["lon"])
-    for key in ("routes", "minutes_to_get_out_the_door", "minutes_from_stop_to_desk"):
+    for key in ("routes", "minutes_to_get_out_the_door", "minutes_from_stop_to_desk", "theme"):
         if key in local:
             cfg[key] = local[key]
     cfg["routes"] = [str(r).strip().upper() for r in as_list(cfg["routes"]) if str(r).strip()]
@@ -674,6 +675,7 @@ class Tracker:
                 "desk_min": self.cfg["minutes_from_stop_to_desk"],
                 "catch_grace_seconds": self.cfg["catch_grace_seconds"],
                 "poll_seconds": self.poll_interval(now),
+                "theme": self.cfg["theme"],
             },
             "routes": self._route_summaries(),
             "arrivals": arrivals if arrivals is not None else base.get("arrivals", []),
@@ -770,9 +772,9 @@ def build(demo=False, config_path=CONFIG_PATH):
         from demo import DemoFeed
         if not cfg["routes"]:
             cfg["routes"] = list(DemoFeed.ROUTES)
+        # The simulated buses only run on fixed paths, so the demo always uses its own places.
         for place, spot in (("home", DemoFeed.HOME), ("work", DemoFeed.WORK)):
-            if cfg[place]["lat"] is None:
-                cfg[place].update(spot)
+            cfg[place] = {"label": spot["label"], "lat": spot["lat"], "lon": spot["lon"]}
         return Tracker(cfg, CTAClient("demo", fetch=DemoFeed(cfg["routes"]).fetch), demo=True)
     return Tracker(cfg, CTAClient(cfg["api_key"]))
 
